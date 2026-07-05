@@ -1,0 +1,161 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { crearJugador } from "../src/game/state.js";
+import { resolverRonda, revisarFinPartida, determinarLider } from "../src/game/GameEngine.js";
+
+function tresJugadores() {
+  return [
+    crearJugador({ id: 1, token: "t1", nombre: "Ana", icono: "🦁" }),
+    crearJugador({ id: 2, token: "t2", nombre: "Beto", icono: "🦊" }),
+    crearJugador({ id: 3, token: "t3", nombre: "Cata", icono: "🐺" }),
+  ];
+}
+
+test("cosecha básica: 2 + 1 por granja", () => {
+  const [j1, j2, j3] = tresJugadores();
+  const { eventos } = resolverRonda([j1, j2, j3], { 1: { tipo: "cosechar" }, 2: { tipo: "cosechar" }, 3: { tipo: "cosechar" } });
+  assert.equal(j1.oro, 5 + 3);
+  assert.ok(eventos.some((e) => e.tipo === "cosecha" && e.jugadorId === 1 && e.cantidad === 3));
+});
+
+test("construcción fallida por robo: el asalto se resuelve antes que la compra", () => {
+  const [j1, j2, j3] = tresJugadores();
+  const acciones = {
+    1: { tipo: "construir", item: "granja" }, // cuesta 3, J1 empieza con 5 de oro
+    2: { tipo: "asaltar", objetivoId: 1, antorcha: false },
+    3: { tipo: "cosechar" },
+  };
+  const { eventos } = resolverRonda([j1, j2, j3], acciones);
+
+  assert.equal(j1.oro, 2, "5 de oro - 3 robados = 2, no le alcanza para la granja");
+  assert.equal(j1.granjas, 1, "la granja NO se construyó");
+  assert.equal(j2.oro, 8, "5 + 3 robados");
+  assert.ok(eventos.some((e) => e.tipo === "construccion_fallida" && e.jugadorId === 1 && e.costo === 3 && e.oroDisponible === 2));
+});
+
+test("antorcha bloqueada por un defensor: se gasta en vano, sin incendio", () => {
+  const [j1, j2, j3] = tresJugadores();
+  const acciones = {
+    1: { tipo: "defender" },
+    2: { tipo: "asaltar", objetivoId: 1, antorcha: true },
+    3: { tipo: "cosechar" },
+  };
+  const { eventos } = resolverRonda([j1, j2, j3], acciones);
+
+  assert.equal(j2.antorchaUsada, true, "la antorcha se consume aunque falle");
+  assert.equal(j1.granjasQuemadas, 0, "no hubo incendio: el ataque fue bloqueado");
+  assert.equal(j2.oro, 5 - 2, "pagó 2 de tributo por ser bloqueado");
+  assert.equal(j1.oro, 5 + 2 + 1, "recibió el tributo (2) + el bono de defensor (1)");
+  assert.ok(eventos.some((e) => e.tipo === "antorcha_desperdiciada"));
+  assert.ok(!eventos.some((e) => e.tipo === "incendio"));
+});
+
+test("antorcha exitosa: incendia una granja cuando el asalto no es bloqueado", () => {
+  const [j1, j2, j3] = tresJugadores();
+  const acciones = {
+    1: { tipo: "cosechar" },
+    2: { tipo: "asaltar", objetivoId: 1, antorcha: true },
+    3: { tipo: "cosechar" },
+  };
+  const { eventos } = resolverRonda([j1, j2, j3], acciones);
+
+  assert.equal(j2.antorchaUsada, true);
+  assert.equal(j1.granjas, 0, "la única granja se quemó");
+  assert.equal(j1.granjasQuemadas, 1, "queda como ceniza permanente");
+  assert.ok(eventos.some((e) => e.tipo === "incendio" && e.objetivoId === 1));
+});
+
+test("tregua sagrada: los asaltos fallan y la antorcha NO se consume", () => {
+  const [j1, j2, j3] = tresJugadores();
+  const acciones = {
+    1: { tipo: "cosechar" },
+    2: { tipo: "asaltar", objetivoId: 1, antorcha: true },
+    3: { tipo: "cosechar" },
+  };
+  const oroJ1Antes = j1.oro;
+  const { eventos } = resolverRonda([j1, j2, j3], acciones, { id: "tregua_sagrada" });
+
+  assert.equal(j2.antorchaUsada, false, "la tregua conserva la antorcha para más adelante");
+  assert.equal(j1.granjas, 1);
+  assert.equal(j1.oro, oroJ1Antes + 3, "J1 solo recibió su cosecha, ningún robo");
+  assert.ok(eventos.some((e) => e.tipo === "asalto_bloqueado_profecia"));
+});
+
+test("cosecha dorada duplica y tormenta negra reduce a la mitad (redondeo abajo)", () => {
+  const [j1] = tresJugadores();
+  j1.granjas = 2; // base = 2 + 1*2 = 4
+  const dorada = resolverRonda([j1], { 1: { tipo: "cosechar" } }, { id: "cosecha_dorada" });
+  assert.ok(dorada.eventos.some((e) => e.tipo === "cosecha" && e.cantidad === 8));
+
+  const [j2] = tresJugadores();
+  j2.granjas = 1; // base = 2 + 1 = 3 -> mitad = 1 (piso)
+  const tormenta = resolverRonda([j2], { 1: { tipo: "cosechar" } }, { id: "tormenta_negra" });
+  assert.ok(tormenta.eventos.some((e) => e.tipo === "cosecha" && e.cantidad === 1));
+});
+
+test("traición en la corte: el líder no puede bloquear esta ronda", () => {
+  const [j1, j2, j3] = tresJugadores();
+  j1.castillo = 2; // líder indiscutido
+  const acciones = {
+    1: { tipo: "defender" },
+    2: { tipo: "asaltar", objetivoId: 1, antorcha: false },
+    3: { tipo: "cosechar" },
+  };
+  const { eventos } = resolverRonda([j1, j2, j3], acciones, { id: "traicion_corte", leaderId: 1 });
+
+  assert.equal(j1.oro, 5 - 3 + 1, "lo asaltaron con éxito (perdió 3) y aun así cobra su bono de defensor (1)");
+  assert.equal(j2.oro, 5 + 3);
+  assert.ok(eventos.some((e) => e.tipo === "asalto_exitoso" && e.objetivoId === 1));
+  assert.ok(eventos.some((e) => e.tipo === "defensa" && e.liderSinBloqueo === true));
+});
+
+test("muralla reduce el robo de 3 a 2", () => {
+  const [j1, j2] = tresJugadores();
+  j1.muralla = true;
+  const { eventos } = resolverRonda([j1, j2], { 1: { tipo: "cosechar" }, 2: { tipo: "asaltar", objetivoId: 1, antorcha: false } });
+  assert.equal(j1.oro, 5 - 2 + 3, "robo reducido a 2, más su cosecha de 3");
+  assert.ok(eventos.some((e) => e.tipo === "asalto_exitoso" && e.robo === 2 && e.muralla === true));
+});
+
+test("fin de partida: empate exacto en castillo completo -> muerte súbita, luego se desempata", () => {
+  const [j1, j2, j3] = tresJugadores();
+  j1.castillo = 3;
+  j1.oro = 10;
+  j2.castillo = 3;
+  j2.oro = 10;
+  j3.castillo = 1;
+
+  const empatado = revisarFinPartida([j1, j2, j3], 15);
+  assert.equal(empatado.terminada, false);
+  assert.equal(empatado.sueteMuerte, true);
+
+  j1.oro = 12; // una ronda más de muerte súbita desempata
+  const decidido = revisarFinPartida([j1, j2, j3], 16);
+  assert.equal(decidido.terminada, true);
+  assert.equal(decidido.ganadorId, 1);
+});
+
+test("límite de 20 rondas: gana mayor puntaje (etapas*100 + oro)", () => {
+  const [j1, j2, j3] = tresJugadores();
+  j1.castillo = 2;
+  j1.oro = 50; // score 250
+  j2.castillo = 2;
+  j2.oro = 10; // score 210
+  j3.castillo = 0;
+  j3.oro = 3;
+
+  const resultado = revisarFinPartida([j1, j2, j3], 20);
+  assert.equal(resultado.terminada, true);
+  assert.equal(resultado.ganadorId, 1);
+});
+
+test("determinarLider: castillo más avanzado, desempate por oro", () => {
+  const [j1, j2, j3] = tresJugadores();
+  j1.castillo = 1;
+  j2.castillo = 2;
+  j2.oro = 20;
+  j3.castillo = 2;
+  j3.oro = 5;
+  const lider = determinarLider([j1, j2, j3]);
+  assert.equal(lider.id, 2);
+});
