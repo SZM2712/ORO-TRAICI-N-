@@ -47,6 +47,7 @@ export default function LobbyScreen() {
               <span className="text-xl">{j.icono}</span>
               <span className="flex-1 text-sm">{j.nombre}</span>
               {j.esHost && <span className="text-[10px] text-oro font-mono uppercase">anfitrión</span>}
+              {j.esBot && <span className="text-[10px] text-acero font-mono uppercase">🤖 cpu</span>}
               {!j.conectado && <span className="text-[10px] text-crema/40">offline</span>}
             </div>
           ))}

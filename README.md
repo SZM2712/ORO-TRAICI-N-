@@ -89,6 +89,7 @@ Cuando tengas los archivos, soltalos en `assets/svg/`, descomentá los imports e
 - Reconexión: el cliente guarda `{roomCode, playerToken}` en `localStorage` y se reincorpora con su estado intacto al reconectar.
 - Anti-bloqueo: tiempo por ronda configurable por el anfitrión (sin límite / 60 s / 30 s) y botón de "forzar pendientes".
 - Salas en memoria, se limpian solas tras 2 h de inactividad (no hay base de datos).
+- **Modo de prueba contra la máquina:** en la pantalla de inicio, el botón "🤖 Probar contra la máquina" crea una sala con 2 bots (`CPU ...`) además del jugador humano, para poder probar el juego sin necesitar más gente. Los bots juegan y votan solos con una IA simple (prioriza construir, a veces asalta o defiende) apenas empieza cada fase, con una demora aleatoria de 1–3 s para que se sienta natural.
 
 ## Despliegue
 
@@ -117,7 +118,7 @@ Con eso, cualquiera puede entrar desde su celular a la URL de Netlify, crear o u
 
 | Evento | Dirección | Descripción |
 |---|---|---|
-| `crear_sala` | cliente → servidor | Crea una sala nueva (ack con `roomCode`, `playerToken`, `playerId`) |
+| `crear_sala` | cliente → servidor | Crea una sala nueva (ack con `roomCode`, `playerToken`, `playerId`). Con `{ vsMaquina: true, cantidadBots }` agrega bots automáticos a la sala |
 | `unirse` | cliente → servidor | Se une a una sala, o se reconecta si manda `playerToken` |
 | `empezar` | cliente → servidor | El anfitrión inicia la partida |
 | `jugar_accion` | cliente → servidor | Envía la jugada secreta de la ronda |

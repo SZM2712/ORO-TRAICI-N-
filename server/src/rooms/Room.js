@@ -17,6 +17,10 @@ import {
 } from "../game/GameEngine.js";
 import { narrarEventos } from "../game/narrativa.js";
 import { generarPlayerToken } from "../utils/ids.js";
+import { NOMBRES_BOTS, decidirAccionBot, decidirVotoBot } from "../game/bot.js";
+
+const DEMORA_BOT_MIN_MS = 900;
+const DEMORA_BOT_MAX_MS = 3200;
 
 const DELAY_REVELACION_MS = 6500;
 const DELAY_VOTACION_REVELADA_MS = 5000;
@@ -26,6 +30,7 @@ export class Room {
     this.io = io;
     this.estado = crearEstadoSala(code);
     this.timers = {};
+    this.timeoutsBots = [];
   }
 
   get code() {
@@ -53,6 +58,8 @@ export class Room {
 
   destruir() {
     Object.keys(this.timers).forEach((n) => this.limpiarTimer(n));
+    this.timeoutsBots.forEach((h) => clearTimeout(h));
+    this.timeoutsBots = [];
   }
 
   jugadorPorId(id) {
@@ -91,6 +98,27 @@ export class Room {
     if (!this.estado.hostToken) this.estado.hostToken = jugador.token;
     this.tocarActividad();
     return jugador;
+  }
+
+  agregarBot(indice) {
+    if (this.estado.fase !== "lobby") throw new Error("La partida ya comenzó.");
+    if (this.estado.jugadores.length >= MAX_JUGADORES) return null;
+    const usados = new Set(this.estado.jugadores.map((j) => j.icono));
+    const icono = ANIMALES.find((a) => !usados.has(a)) || ANIMALES[this.estado.jugadores.length % ANIMALES.length];
+    const nombre = `CPU ${NOMBRES_BOTS[indice % NOMBRES_BOTS.length]}`;
+    const jugador = crearJugador({ id: this.estado.siguienteId++, token: generarPlayerToken(), nombre, icono, esBot: true });
+    this.estado.jugadores.push(jugador);
+    this.tocarActividad();
+    return jugador;
+  }
+
+  agregarBots(cantidad) {
+    const agregados = [];
+    for (let i = 0; i < cantidad; i++) {
+      if (this.estado.jugadores.length >= MAX_JUGADORES) break;
+      agregados.push(this.agregarBot(i));
+    }
+    return agregados;
   }
 
   reconectar(token, socketId) {
@@ -199,6 +227,23 @@ export class Room {
     this.emitirSnapshot();
     this.limpiarTimer("votacion");
     this.timers.votacion = setTimeout(() => this.forzarVotosPendientes(), TIEMPO_VOTACION_MS);
+    this.programarBotsVoto();
+  }
+
+  programarBotsVoto() {
+    const bots = this.estado.jugadores.filter((j) => j.esBot);
+    for (const bot of bots) {
+      const demora = DEMORA_BOT_MIN_MS + Math.random() * Math.min(DEMORA_BOT_MAX_MS, TIEMPO_VOTACION_MS - 1000);
+      const handle = setTimeout(() => {
+        if (this.estado.fase !== "profecia" || this.estado.profeciaActual?.votos?.[bot.id]) return;
+        try {
+          this.votar(bot.id, decidirVotoBot());
+        } catch {
+          // se resuelve igual con forzarVotosPendientes si algo falla
+        }
+      }, demora);
+      this.timeoutsBots.push(handle);
+    }
   }
 
   votar(jugadorId, opcion) {
@@ -266,6 +311,26 @@ export class Room {
     this.limpiarTimer("accion");
     if (tiempo) {
       this.timers.accion = setTimeout(() => this.forzarAccionesPendientes(), tiempo);
+    }
+    this.programarBotsAccion();
+  }
+
+  programarBotsAccion() {
+    const bots = this.estado.jugadores.filter((j) => j.esBot);
+    const limiteDemora = this.estado.configuracion.tiempoLimite
+      ? Math.min(DEMORA_BOT_MAX_MS, this.estado.configuracion.tiempoLimite - 1000)
+      : DEMORA_BOT_MAX_MS;
+    for (const bot of bots) {
+      const demora = DEMORA_BOT_MIN_MS + Math.random() * Math.max(limiteDemora - DEMORA_BOT_MIN_MS, 0);
+      const handle = setTimeout(() => {
+        if (this.estado.fase !== "accion" || this.estado.accionesPendientes[bot.id]) return;
+        try {
+          this.jugarAccion(bot.id, decidirAccionBot(bot, this.estado.jugadores));
+        } catch {
+          // se resuelve igual con forzarAccionesPendientes si algo falla
+        }
+      }, demora);
+      this.timeoutsBots.push(handle);
     }
   }
 

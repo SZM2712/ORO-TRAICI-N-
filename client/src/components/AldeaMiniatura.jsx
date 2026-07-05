@@ -23,7 +23,10 @@ export default function AldeaMiniatura({ jugador, seleccionado = false, onClick,
         <span>💰{jugador.oro}</span>
         <span>🏰{jugador.castillo}</span>
       </div>
-      {!jugador.conectado && (
+      {jugador.esBot && (
+        <span className="absolute top-1 right-1 text-[9px] bg-black/60 px-1 rounded text-crema/70">🤖 cpu</span>
+      )}
+      {!jugador.conectado && !jugador.esBot && (
         <span className="absolute top-1 right-1 text-[9px] bg-black/60 px-1 rounded text-crema/70">desconectado</span>
       )}
       {jugador.selloJugada && <span className="absolute top-1 left-1 text-xs">🔒</span>}

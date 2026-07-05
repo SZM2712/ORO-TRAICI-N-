@@ -11,6 +11,10 @@ export function registrarHandlersSala(io, socket, roomManager) {
       const sala = roomManager.crearSala();
       const jugador = sala.agregarJugador({ nombre: payload?.nombre, icono: payload?.icono, socketId: socket.id });
       unirASalaSocket(socket, sala, jugador);
+      if (payload?.vsMaquina) {
+        const cantidadBots = Math.min(Math.max(Number(payload.cantidadBots) || 2, 1), 7);
+        sala.agregarBots(cantidadBots);
+      }
       ack?.({
         ok: true,
         roomCode: sala.code,

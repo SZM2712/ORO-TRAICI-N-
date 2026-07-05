@@ -20,6 +20,14 @@ export default function InicioScreen() {
     if (!res.ok) setError(res.error);
   };
 
+  const alJugarContraMaquina = async () => {
+    if (!validarNombre()) return setError("Ponele un nombre a tu aldea.");
+    setCargando(true);
+    const res = await crearSala({ nombre, icono, vsMaquina: true, cantidadBots: 2 });
+    setCargando(false);
+    if (!res.ok) setError(res.error);
+  };
+
   const alUnirse = async () => {
     if (!validarNombre()) return setError("Ponele un nombre a tu aldea.");
     if (codigo.trim().length !== 4) return setError("El código de sala tiene 4 letras.");
@@ -66,6 +74,14 @@ export default function InicioScreen() {
           className="w-full rounded-xl py-3 bg-oro text-[#241017] font-titulo text-lg tracking-wide active:scale-95 disabled:opacity-50"
         >
           Crear Sala
+        </button>
+
+        <button
+          onClick={alJugarContraMaquina}
+          disabled={cargando}
+          className="w-full rounded-xl py-3 border-2 border-oro/60 text-oro font-titulo text-base tracking-wide active:scale-95 disabled:opacity-50"
+        >
+          🤖 Probar contra la máquina
         </button>
 
         <div className="flex items-center gap-2">

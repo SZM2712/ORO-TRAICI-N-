@@ -1,11 +1,12 @@
 import { ORO_INICIAL, GRANJAS_INICIALES } from "../config.js";
 
-export function crearJugador({ id, token, nombre, icono }) {
+export function crearJugador({ id, token, nombre, icono, esBot = false }) {
   return {
     id,
     token,
     nombre,
     icono,
+    esBot,
     conectado: true,
     socketId: null,
     oro: ORO_INICIAL,
@@ -46,6 +47,7 @@ export function jugadorPublico(j) {
     id: j.id,
     nombre: j.nombre,
     icono: j.icono,
+    esBot: Boolean(j.esBot),
     conectado: j.conectado,
     oro: j.oro,
     granjas: j.granjas,

@@ -85,8 +85,8 @@ export function GameProvider({ children }) {
     };
   }, []);
 
-  const crearSala = useCallback(async ({ nombre, icono }) => {
-    const res = await emitirConAck("crear_sala", { nombre, icono });
+  const crearSala = useCallback(async ({ nombre, icono, vsMaquina, cantidadBots }) => {
+    const res = await emitirConAck("crear_sala", { nombre, icono, vsMaquina, cantidadBots });
     if (res.ok) {
       guardarSesion({ roomCode: res.roomCode, playerToken: res.playerToken, playerId: res.playerId });
       setSesion({ roomCode: res.roomCode, playerToken: res.playerToken, playerId: res.playerId });

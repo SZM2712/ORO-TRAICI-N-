@@ -26,6 +26,7 @@ export default function JuegoScreen() {
     forzarPendientes,
     esHost,
     limpiarRondaRevelada,
+    limpiarVotacionRevelada,
     setError,
   } = useGame();
   const { reproducir, silenciado, alternarMute } = useSonidos();
@@ -37,6 +38,10 @@ export default function JuegoScreen() {
   useEffect(() => {
     setBorrador({ tipo: null });
   }, [snapshot.ronda, snapshot.fase]);
+
+  useEffect(() => {
+    if (snapshot.fase !== "profecia") limpiarVotacionRevelada();
+  }, [snapshot.fase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!rondaRevelada) return;
