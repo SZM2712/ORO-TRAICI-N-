@@ -4,6 +4,7 @@ import {
   RONDAS_PROFECIA,
   TIEMPO_VOTACION_MS,
   ANIMALES,
+  ETAPA_AMBICION,
 } from "../config.js";
 import { crearEstadoSala, crearJugador, jugadorPublico } from "../game/state.js";
 import {
@@ -467,7 +468,12 @@ export class Room {
       if (!objetivo || objetivo.id === jugador.id) throw new Error("Objetivo de asalto inválido.");
       const antorcha = Boolean(accion.antorcha);
       if (antorcha && jugador.antorchaUsada) throw new Error("Ya usaste tu antorcha esta partida.");
-      return { tipo, objetivoId: objetivo.id, antorcha };
+      const asedio = Boolean(accion.asedio);
+      if (asedio) {
+        if (jugador.asedioUsado) throw new Error("Ya usaste tu asedio esta partida.");
+        if (objetivo.castillo < ETAPA_AMBICION) throw new Error("Solo podés asediar un castillo en etapa 2 o más.");
+      }
+      return { tipo, objetivoId: objetivo.id, antorcha, asedio };
     }
     if (tipo === "enviar_oro") {
       const objetivo = this.jugadorPorId(accion.objetivoId);

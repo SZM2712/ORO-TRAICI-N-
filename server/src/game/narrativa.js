@@ -100,6 +100,25 @@ export function narrarEventos(eventos, jugadoresPorId) {
       case "traicion_aliado":
         frases.push(`🗡️💔 ¡TRAICIÓN! ${tag(j(ev.atacanteId))} rompió su alianza con ${tag(j(ev.objetivoId))} y lo asaltó.`);
         break;
+      case "asedio_exitoso":
+        frases.push(
+          `🏰💥 ¡ASEDIO! ${tag(j(ev.atacanteId))} le derribó una etapa del castillo a ${tag(j(ev.objetivoId))} (ahora en etapa ${
+            ev.etapaNueva
+          }).`
+        );
+        break;
+      case "asedio_desperdiciado":
+        frases.push(`🏰🛡️ El asedio de ${tag(j(ev.atacanteId))} se estrelló contra la defensa de ${tag(j(ev.objetivoId))} — se gastó en vano.`);
+        break;
+      case "asedio_sin_efecto":
+        frases.push(`🏰 El asedio de ${tag(j(ev.atacanteId))} llegó tarde: el castillo de ${tag(j(ev.objetivoId))} ya no tenía etapas que perder.`);
+        break;
+      case "profecia_rebelion":
+        frases.push(`🔥👑 La Rebelión Popular le derribó una etapa del castillo al líder: ${tag(j(ev.jugadorId))} (ahora en etapa ${ev.etapaNueva}).`);
+        break;
+      case "profecia_rebelion_sin_efecto":
+        frases.push(`🔥👑 La Rebelión Popular buscó un castillo que derribar... y nadie tenía ninguna etapa construida.`);
+        break;
       case "alerta_panico":
         frases.push(`🚨 ¡El castillo de ${tag(j(ev.jugadorId))} llegó a la etapa 2!`);
         break;

@@ -75,11 +75,14 @@ export default function JuegoScreen() {
       .map(([a, b]) => (a === miJugador.id ? b : a))
   );
   const apuntandoAAliado = borrador.tipo === "asaltar" && borrador.objetivoId && misAliadosIds.has(borrador.objetivoId);
+  const objetivoAsalto = rivales.find((r) => r.id === borrador.objetivoId);
+  const objetivoEsAmbicioso = borrador.tipo === "asaltar" && Boolean(objetivoAsalto && objetivoAsalto.castillo >= ETAPA_AMBICION);
 
   const alTocarRival = (jugador) => {
     if (miJugador.selloJugada) return;
     if (borrador.tipo === "asaltar") {
-      setBorrador((b) => ({ ...b, objetivoId: jugador.id }));
+      const esAmbicioso = jugador.castillo >= ETAPA_AMBICION;
+      setBorrador((b) => ({ ...b, objetivoId: jugador.id, asedio: esAmbicioso ? b.asedio : false }));
     } else if (borrador.tipo === "enviar_oro" && misAliadosIds.has(jugador.id)) {
       setBorrador((b) => ({ ...b, objetivoId: jugador.id }));
     }
@@ -207,6 +210,7 @@ export default function JuegoScreen() {
         sellado={Boolean(miJugador.selloJugada)}
         enviando={enviando}
         hayAliados={misAliadosIds.size > 0}
+        objetivoEsAmbicioso={objetivoEsAmbicioso}
       />
 
       <CronicaReino historial={snapshot.historial} />

@@ -189,6 +189,16 @@ export function aplicarEfectoProfecia(jugadores, profeciaId, rng = Math.random) 
       eventos.push({ tipo: "profecia_traicion", jugadorId: lider.id });
       break;
     }
+    case "rebelion_popular": {
+      const lider = determinarLider(jugadores, rng);
+      if (lider.castillo > 0) {
+        lider.castillo -= 1;
+        eventos.push({ tipo: "profecia_rebelion", jugadorId: lider.id, etapaNueva: lider.castillo });
+      } else {
+        eventos.push({ tipo: "profecia_rebelion_sin_efecto" });
+      }
+      break;
+    }
     default:
       break; // cosecha_dorada / gremio_constructores / tregua_sagrada: solo modifican resolverRonda
   }
@@ -286,6 +296,10 @@ export function resolverRonda(jugadores, acciones, profeciaActiva = null, alianz
         atacante.antorchaUsada = true;
         eventos.push({ tipo: "antorcha_desperdiciada", atacanteId: atacante.id, objetivoId: objetivo.id });
       }
+      if (acc.asedio) {
+        atacante.asedioUsado = true;
+        eventos.push({ tipo: "asedio_desperdiciado", atacanteId: atacante.id, objetivoId: objetivo.id });
+      }
     } else {
       const ambicioso = atacante.castillo >= ETAPA_AMBICION;
       const companeros = (asaltantesPorObjetivo.get(objetivo.id) || []).filter((id) => id !== atacante.id);
@@ -314,6 +328,15 @@ export function resolverRonda(jugadores, acciones, profeciaActiva = null, alianz
           eventos.push({ tipo: "incendio", atacanteId: atacante.id, objetivoId: objetivo.id });
         } else {
           eventos.push({ tipo: "antorcha_sin_objetivo", atacanteId: atacante.id, objetivoId: objetivo.id });
+        }
+      }
+      if (acc.asedio) {
+        atacante.asedioUsado = true;
+        if (objetivo.castillo > 0) {
+          objetivo.castillo -= 1;
+          eventos.push({ tipo: "asedio_exitoso", atacanteId: atacante.id, objetivoId: objetivo.id, etapaNueva: objetivo.castillo });
+        } else {
+          eventos.push({ tipo: "asedio_sin_efecto", atacanteId: atacante.id, objetivoId: objetivo.id });
         }
       }
     }

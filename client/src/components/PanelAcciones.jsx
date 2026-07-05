@@ -3,7 +3,17 @@ import { costoConDescuento, NOMBRES_ITEM, MAX_GRANJAS } from "../utils/format.js
 
 const ITEMS_CONSTRUCCION = ["granja", "muralla", "oraculo", "castillo"];
 
-export default function PanelAcciones({ miJugador, profeciaActiva, borrador, setBorrador, onSellar, sellado, enviando, hayAliados }) {
+export default function PanelAcciones({
+  miJugador,
+  profeciaActiva,
+  borrador,
+  setBorrador,
+  onSellar,
+  sellado,
+  enviando,
+  hayAliados,
+  objetivoEsAmbicioso,
+}) {
   if (!miJugador) return null;
 
   const elegirTipo = (tipo) => {
@@ -19,6 +29,11 @@ export default function PanelAcciones({ miJugador, profeciaActiva, borrador, set
   const alternarAntorcha = () => {
     if (sellado || miJugador.antorchaUsada) return;
     setBorrador((b) => ({ ...b, antorcha: !b.antorcha }));
+  };
+
+  const alternarAsedio = () => {
+    if (sellado || miJugador.asedioUsado || !objetivoEsAmbicioso) return;
+    setBorrador((b) => ({ ...b, asedio: !b.asedio }));
   };
 
   const cambiarCantidad = (valor) => {
@@ -100,6 +115,20 @@ export default function PanelAcciones({ miJugador, profeciaActiva, borrador, set
             />
             <span>🔥 Usar la antorcha (una sola vez por partida){miJugador.antorchaUsada ? " — ya la usaste" : ""}</span>
           </label>
+          {borrador.objetivoId && objetivoEsAmbicioso && (
+            <label className={`flex items-center gap-2 ${miJugador.asedioUsado ? "opacity-40" : ""}`}>
+              <input
+                type="checkbox"
+                checked={Boolean(borrador.asedio)}
+                disabled={miJugador.asedioUsado || sellado}
+                onChange={alternarAsedio}
+              />
+              <span>
+                🏰💥 Asedio: si no te bloquean, le baja una etapa al castillo (una sola vez por partida)
+                {miJugador.asedioUsado ? " — ya lo usaste" : ""}
+              </span>
+            </label>
+          )}
         </div>
       )}
 

@@ -55,7 +55,8 @@ export function decidirAccionBot(jugador, jugadores, aliadosIds = new Set(), rng
     const pool = amenazas.length > 0 && rng() < 0.7 ? amenazas : candidatosAsalto;
     const objetivo = pool[Math.floor(rng() * pool.length)];
     const antorcha = !jugador.antorchaUsada && rng() < 0.2;
-    return { tipo: "asaltar", objetivoId: objetivo.id, antorcha };
+    const asedio = !jugador.asedioUsado && objetivo.castillo >= ETAPA_AMBICION && rng() < 0.5;
+    return { tipo: "asaltar", objetivoId: objetivo.id, antorcha, asedio };
   }
 
   if (rng() < 0.15) return { tipo: "defender" };

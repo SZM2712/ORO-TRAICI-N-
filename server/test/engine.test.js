@@ -8,6 +8,7 @@ import {
   existeAlianza,
   agregarAlianza,
   resolverTraiciones,
+  aplicarEfectoProfecia,
 } from "../src/game/GameEngine.js";
 
 function tresJugadores() {
@@ -297,4 +298,61 @@ test("defensa conjunta: no aplica si el aliado no también defendió", () => {
   const { eventos } = resolverRonda([j1, j2, j3], acciones, null, alianzas);
   assert.equal(j1.oro, 5 + 1, "solo el bono normal de defensor");
   assert.ok(eventos.some((e) => e.tipo === "defensa" && e.jugadorId === 1 && e.conjunta === false && e.bono === 1));
+});
+
+test("asedio exitoso: le baja una etapa de castillo al objetivo, además del robo normal", () => {
+  const [j1, j2, j3] = tresJugadores();
+  j1.castillo = 2;
+  const acciones = {
+    1: { tipo: "cosechar" },
+    2: { tipo: "asaltar", objetivoId: 1, antorcha: false, asedio: true },
+    3: { tipo: "cosechar" },
+  };
+  const { eventos } = resolverRonda([j1, j2, j3], acciones);
+  assert.equal(j1.castillo, 1, "perdió una etapa de castillo");
+  assert.equal(j2.asedioUsado, true, "el asedio se consume, es una sola vez por partida");
+  assert.ok(eventos.some((e) => e.tipo === "asedio_exitoso" && e.atacanteId === 2 && e.objetivoId === 1 && e.etapaNueva === 1));
+  assert.ok(eventos.some((e) => e.tipo === "asalto_exitoso" && e.atacanteId === 2), "el robo de oro normal se sigue aplicando");
+});
+
+test("asedio bloqueado por un defensor: se gasta en vano, sin bajar el castillo", () => {
+  const [j1, j2, j3] = tresJugadores();
+  j1.castillo = 2;
+  const acciones = {
+    1: { tipo: "defender" },
+    2: { tipo: "asaltar", objetivoId: 1, antorcha: false, asedio: true },
+    3: { tipo: "cosechar" },
+  };
+  const { eventos } = resolverRonda([j1, j2, j3], acciones);
+  assert.equal(j1.castillo, 2, "el castillo no se movió, el asedio fue bloqueado");
+  assert.equal(j2.asedioUsado, true, "se consumió igual, como la antorcha");
+  assert.ok(eventos.some((e) => e.tipo === "asedio_desperdiciado" && e.atacanteId === 2));
+});
+
+test("asedio sin efecto si el objetivo ya no tiene etapas de castillo", () => {
+  const [j1, j2, j3] = tresJugadores();
+  j1.castillo = 0;
+  const acciones = {
+    1: { tipo: "cosechar" },
+    2: { tipo: "asaltar", objetivoId: 1, antorcha: false, asedio: true },
+    3: { tipo: "cosechar" },
+  };
+  const { eventos } = resolverRonda([j1, j2, j3], acciones);
+  assert.equal(j1.castillo, 0);
+  assert.ok(eventos.some((e) => e.tipo === "asedio_sin_efecto" && e.atacanteId === 2));
+});
+
+test("profecía Rebelión Popular: el líder pierde una etapa de castillo al iniciar la ronda", () => {
+  const [j1, j2, j3] = tresJugadores();
+  j1.castillo = 2;
+  j2.castillo = 1;
+  const { eventos } = aplicarEfectoProfecia([j1, j2, j3], "rebelion_popular");
+  assert.equal(j1.castillo, 1, "j1 era el líder (mayor castillo), pierde una etapa");
+  assert.ok(eventos.some((e) => e.tipo === "profecia_rebelion" && e.jugadorId === 1 && e.etapaNueva === 1));
+});
+
+test("profecía Rebelión Popular: sin efecto si nadie tiene castillo construido", () => {
+  const [j1, j2, j3] = tresJugadores();
+  const { eventos } = aplicarEfectoProfecia([j1, j2, j3], "rebelion_popular");
+  assert.ok(eventos.some((e) => e.tipo === "profecia_rebelion_sin_efecto"));
 });

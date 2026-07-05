@@ -82,6 +82,14 @@ export const MAZO_PROFECIAS = [
     favorable: false,
     inmediata: false,
   },
+  {
+    id: "rebelion_popular",
+    icono: "🔥👑",
+    nombre: "Rebelión Popular",
+    texto: "El pueblo se cansa de la ambición del líder: pierde una etapa de su castillo al iniciar la ronda.",
+    favorable: false,
+    inmediata: true,
+  },
 ];
 
 export function profeciaPorId(id) {

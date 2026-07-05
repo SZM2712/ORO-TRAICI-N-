@@ -16,6 +16,7 @@ export function crearJugador({ id, token, nombre, icono, esBot = false }) {
     torreOraculo: false,
     castillo: 0,
     antorchaUsada: false,
+    asedioUsado: false,
   };
 }
 
@@ -58,6 +59,7 @@ export function jugadorPublico(j) {
     torreOraculo: j.torreOraculo,
     castillo: j.castillo,
     antorchaUsada: j.antorchaUsada,
+    asedioUsado: j.asedioUsado,
     selloJugada: false, // se completa en Room al armar snapshot
   };
 }
