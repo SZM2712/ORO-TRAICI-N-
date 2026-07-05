@@ -35,6 +35,7 @@ import {
   decidirPropuestaAlianzaBot,
   decidirEleccionDueloBot,
 } from "../game/bot.js";
+import { PLANTILLAS_MENSAJE_ALIANZA, PLANTILLA_REQUIERE_OBJETIVO } from "../game/mensajesAlianza.js";
 
 const DEMORA_BOT_MIN_MS = 900;
 const DEMORA_BOT_MAX_MS = 3200;
@@ -229,7 +230,7 @@ export class Room {
   }
 
   // Romper la alianza "en buenos términos": a diferencia de la traición, acá
-  // no hay minijuego — el tesoro compartido se reparte 50/50 y se anuncia.
+  // no hay minijuego — el tesoro compartido se reparte por igual y se anuncia.
   romperAlianzaFormal(jugadorId, objetivoId) {
     if (this.estado.fase !== "accion") throw new Error("Solo podés romper alianzas durante la fase de acción.");
     if (!this.sonAliados(jugadorId, objetivoId)) throw new Error("No están aliados.");
@@ -238,36 +239,104 @@ export class Room {
     if (!jugador || !objetivo) throw new Error("Jugador no encontrado.");
 
     this.estado.alianzas = quitarAlianza(this.estado.alianzas, jugadorId, objetivoId);
-    const clave = claveAlianza(jugadorId, objetivoId);
-    const monto = this.estado.tesorosAlianza[clave] || 0;
-    delete this.estado.tesorosAlianza[clave];
     this.tocarActividad();
+    this.resolverTesorosAfectados(jugadorId, objetivoId);
+    this.estado.historial.push(`💔🤝 ${jugador.icono} ${jugador.nombre} y ${objetivo.icono} ${objetivo.nombre} rompieron su alianza en buenos términos.`);
 
-    if (monto > 0) {
-      const impuesto = Math.floor(monto * PORCENTAJE_TESORO_AL_REY);
-      const repartible = monto - impuesto;
-      const mitad = Math.floor(repartible / 2);
-      jugador.oro += mitad;
-      objetivo.oro += repartible - mitad;
-      this.estado.historial.push(
-        `💔🤝 ${jugador.icono} ${jugador.nombre} y ${objetivo.icono} ${objetivo.nombre} rompieron su alianza en buenos términos y se repartieron ${repartible} de oro de su tesoro secreto (${mitad}/${
-          repartible - mitad
-        }) — ${impuesto} de oro fueron a la corona como impuesto.`
-      );
-    } else {
-      this.estado.historial.push(`💔🤝 ${jugador.icono} ${jugador.nombre} y ${objetivo.icono} ${objetivo.nombre} rompieron su alianza en buenos términos.`);
-    }
-
-    this.emitirATodos("alianza_rota", { a: jugadorId, b: objetivoId, monto, formal: true });
+    this.emitirATodos("alianza_rota", { a: jugadorId, b: objetivoId, formal: true });
     this.emitirSnapshot();
   }
 
-  emitirTesoroAlianza(aId, bId) {
-    const monto = this.estado.tesorosAlianza[claveAlianza(aId, bId)] || 0;
-    const a = this.jugadorPorId(aId);
-    const b = this.jugadorPorId(bId);
-    if (a?.socketId) this.io.to(a.socketId).emit("tesoro_alianza", { conId: bId, monto });
-    if (b?.socketId) this.io.to(b.socketId).emit("tesoro_alianza", { conId: aId, monto });
+  // Busca cualquier tesoro compartido cuyo grupo incluya a estos dos ids: al
+  // romperse el vínculo entre ellos (formal o por traición), cualquier
+  // camarilla que dependiera de esa confianza mutua deja de tener sentido.
+  // Si `traidorId` viene seteado (ruptura por traición) y el grupo es de
+  // exactamente 2 personas, no reparte acá: lo agrega a `duelosAIniciar` para
+  // disputarlo a piedra, papel o tijera. Grupos de 3+ traicionados excluyen
+  // al traidor del reparto; las rupturas en buenos términos (`traidorId`
+  // ausente) reparten por igual entre todos los miembros.
+  resolverTesorosAfectados(aId, bId, { traidorId = null, duelosAIniciar = [] } = {}) {
+    for (const clave of Object.keys(this.estado.tesorosAlianza)) {
+      const miembros = clave.split("-").map(Number);
+      if (!miembros.includes(aId) || !miembros.includes(bId)) continue;
+      const monto = this.estado.tesorosAlianza[clave];
+      delete this.estado.tesorosAlianza[clave];
+      if (!monto) continue;
+
+      if (traidorId != null && miembros.length === 2) {
+        duelosAIniciar.push({ aId: miembros[0], bId: miembros[1], monto });
+        continue;
+      }
+
+      const impuesto = Math.floor(monto * PORCENTAJE_TESORO_AL_REY);
+      const repartible = monto - impuesto;
+      const beneficiarios = traidorId != null ? miembros.filter((id) => id !== traidorId) : miembros;
+      const porCabeza = Math.floor(repartible / beneficiarios.length);
+      const nombres = beneficiarios.map((id) => {
+        const j = this.jugadorPorId(id);
+        j.oro += porCabeza;
+        return `${j.icono} ${j.nombre}`;
+      });
+
+      if (traidorId != null) {
+        const traidor = this.jugadorPorId(traidorId);
+        this.estado.historial.push(
+          `🗡️💔 Traición: ${traidor.icono} ${traidor.nombre} pierde su parte del tesoro secreto del grupo (${monto} de oro) — ${nombres.join(
+            ", "
+          )} se reparten ${repartible} de oro (${porCabeza} c/u) y ${impuesto} fueron a la corona.`
+        );
+      } else {
+        this.estado.historial.push(
+          `💔🤝 Se disolvió un pacto de ${miembros.length} y su tesoro secreto (${monto} de oro): ${nombres.join(
+            ", "
+          )} se reparten ${repartible} de oro (${porCabeza} c/u) — ${impuesto} fueron a la corona.`
+        );
+      }
+    }
+    return duelosAIniciar;
+  }
+
+  // Reenvía a cada miembro de cada tesoro compartido vigente el monto total
+  // del grupo (mismo valor para todos, ya que es un solo pozo).
+  emitirTesorosAlianza() {
+    for (const [clave, monto] of Object.entries(this.estado.tesorosAlianza)) {
+      const miembros = clave.split("-").map(Number);
+      for (const id of miembros) {
+        const jugador = this.jugadorPorId(id);
+        if (!jugador?.socketId) continue;
+        for (const otroId of miembros) {
+          if (otroId === id) continue;
+          this.io.to(jugador.socketId).emit("tesoro_alianza", { conId: otroId, monto });
+        }
+      }
+    }
+  }
+
+  // Chat entre aliados: mensajes rápidos y fijos (nunca texto libre del
+  // cliente) para coordinar ataques conjuntos o avisar intenciones.
+  enviarMensajeAlianza(jugadorId, plantillaId, objetivoId) {
+    const plantilla = PLANTILLAS_MENSAJE_ALIANZA[plantillaId];
+    if (!plantilla) throw new Error("Mensaje inválido.");
+    const aliados = this.aliadosDe(jugadorId);
+    if (aliados.size === 0) throw new Error("No tenés aliados a quién avisarles.");
+    const jugador = this.jugadorPorId(jugadorId);
+
+    let texto;
+    if (plantillaId === PLANTILLA_REQUIERE_OBJETIVO) {
+      const objetivo = this.jugadorPorId(Number(objetivoId));
+      if (!objetivo) throw new Error("Objetivo no encontrado.");
+      texto = plantilla(objetivo.nombre);
+    } else {
+      texto = plantilla();
+    }
+
+    const payload = { deId: jugadorId, deNombre: jugador.nombre, deIcono: jugador.icono, texto, ts: Date.now() };
+    this.tocarActividad();
+    if (jugador.socketId) this.io.to(jugador.socketId).emit("mensaje_alianza", payload);
+    for (const id of aliados) {
+      const aliado = this.jugadorPorId(id);
+      if (aliado?.socketId) this.io.to(aliado.socketId).emit("mensaje_alianza", payload);
+    }
   }
 
   // ---------------------------------------------------------------------
@@ -653,10 +722,12 @@ export class Room {
     this.limpiarTimer("accion");
     const jugadoresAntes = new Map(this.estado.jugadores.map((j) => [j.id, j.castillo]));
 
-    // Interés del tesoro compartido: crece un poco cada ronda que la alianza
-    // aguanta, antes de sumarle el botín en pinza de esta ronda.
-    for (const [a, b] of this.estado.alianzas) {
-      const clave = claveAlianza(a, b);
+    // Interés del tesoro compartido: crece un poco cada ronda que el grupo
+    // aguanta, antes de sumarle el botín en pinza de esta ronda. Cualquier
+    // tesoro que sigue en pie ya tiene garantizado que todos sus miembros
+    // siguen aliados entre sí (se disuelve al instante si se rompe algún
+    // vínculo interno, ver resolverTesorosAfectados).
+    for (const clave of Object.keys(this.estado.tesorosAlianza)) {
       if (this.estado.tesorosAlianza[clave] > 0) {
         this.estado.tesorosAlianza[clave] = Math.floor(this.estado.tesorosAlianza[clave] * (1 + INTERES_TESORO_ALIANZA));
       }
@@ -665,17 +736,14 @@ export class Room {
     const { traiciones, alianzasRestantes } = resolverTraiciones(this.estado.alianzas, this.estado.accionesPendientes);
     this.estado.alianzas = alianzasRestantes;
 
-    // El tesoro de una alianza rota por traición no se reparte solo: se
-    // decide con un duelo de piedra/papel/tijera arrancado después de
-    // revelar la ronda (ver más abajo), para que se vea el monto en juego
-    // antes de que empiece la disputa.
+    // El tesoro de un par traicionado no se reparte solo: se decide con un
+    // duelo de piedra/papel/tijera arrancado después de revelar la ronda
+    // (ver más abajo). Si el traidor y la víctima compartían un tesoro de
+    // grupo más grande (3+), ese se resuelve al instante excluyendo al
+    // traidor del reparto (ver resolverTesorosAfectados).
     const duelosAIniciar = [];
     for (const t of traiciones) {
-      const clave = claveAlianza(t.atacanteId, t.objetivoId);
-      const monto = this.estado.tesorosAlianza[clave];
-      if (!monto) continue;
-      delete this.estado.tesorosAlianza[clave];
-      duelosAIniciar.push({ aId: t.atacanteId, bId: t.objetivoId, monto });
+      this.resolverTesorosAfectados(t.atacanteId, t.objetivoId, { traidorId: t.atacanteId, duelosAIniciar });
     }
 
     const { eventos: eventosCombate } = resolverRonda(
@@ -687,9 +755,7 @@ export class Room {
     );
     const eventos = [...traiciones, ...eventosCombate];
 
-    for (const [a, b] of this.estado.alianzas) {
-      this.emitirTesoroAlianza(a, b);
-    }
+    this.emitirTesorosAlianza();
 
     for (const j of this.estado.jugadores) {
       if (jugadoresAntes.get(j.id) < 2 && j.castillo >= 2) {

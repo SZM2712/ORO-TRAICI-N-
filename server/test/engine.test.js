@@ -9,6 +9,8 @@ import {
   agregarAlianza,
   quitarAlianza,
   claveAlianza,
+  claveGrupo,
+  agruparAliadosPinza,
   resolverTraiciones,
   resolverPiedraPapelTijera,
   aplicarEfectoProfecia,
@@ -19,6 +21,13 @@ function tresJugadores() {
     crearJugador({ id: 1, token: "t1", nombre: "Ana", icono: "🦁" }),
     crearJugador({ id: 2, token: "t2", nombre: "Beto", icono: "🦊" }),
     crearJugador({ id: 3, token: "t3", nombre: "Cata", icono: "🐺" }),
+  ];
+}
+
+function cuatroJugadores() {
+  return [
+    ...tresJugadores(),
+    crearJugador({ id: 4, token: "t4", nombre: "Dana", icono: "🐻" }),
   ];
 }
 
@@ -250,6 +259,79 @@ test("asalto en pinza: no aplica si los dos atacantes no son aliados entre sí",
   };
   const { eventos } = resolverRonda([j1, j2, j3], acciones, null, []);
   assert.ok(eventos.every((e) => e.tipo !== "asalto_exitoso" || e.enPinza === false));
+});
+
+test("asalto en pinza: un trío mutuamente aliado comparte un solo tesoro de grupo", () => {
+  const [j1, j2, j3, j4] = cuatroJugadores();
+  const alianzas = [
+    [1, 2],
+    [1, 3],
+    [2, 3],
+  ];
+  const tesoros = {};
+  const acciones = {
+    1: { tipo: "asaltar", objetivoId: 4, antorcha: false },
+    2: { tipo: "asaltar", objetivoId: 4, antorcha: false },
+    3: { tipo: "asaltar", objetivoId: 4, antorcha: false },
+    4: { tipo: "cosechar" },
+  };
+  const { eventos } = resolverRonda([j1, j2, j3, j4], acciones, null, alianzas, tesoros);
+
+  const asaltos = eventos.filter((e) => e.tipo === "asalto_exitoso");
+  assert.equal(asaltos.length, 3);
+  assert.ok(asaltos.every((e) => e.enPinza === true), "los 3 están en pinza, no solo un par");
+  assert.equal(j1.oro, 5, "el botín no queda en el oro visible de ninguno de los tres");
+  assert.equal(j2.oro, 5);
+  assert.equal(j3.oro, 5);
+  assert.equal(Object.keys(tesoros).length, 1, "un solo tesoro compartido, no fragmentado en pares");
+  assert.equal(tesoros[claveGrupo([1, 2, 3])], 5, "todo el botín cae en el tesoro único del trío");
+});
+
+test("asalto en pinza: si no son clique completo, se agrupan en el par posible y el resto ataca solo", () => {
+  const [j1, j2, j3, j4] = cuatroJugadores();
+  // 1-2 y 2-3 aliados, pero 1-3 no: no forman trío, solo un par.
+  const alianzas = [
+    [1, 2],
+    [2, 3],
+  ];
+  const tesoros = {};
+  const acciones = {
+    1: { tipo: "asaltar", objetivoId: 4, antorcha: false },
+    2: { tipo: "asaltar", objetivoId: 4, antorcha: false },
+    3: { tipo: "asaltar", objetivoId: 4, antorcha: false },
+    4: { tipo: "cosechar" },
+  };
+  const { eventos } = resolverRonda([j1, j2, j3, j4], acciones, null, alianzas, tesoros);
+
+  const asaltoJ1 = eventos.find((e) => e.tipo === "asalto_exitoso" && e.atacanteId === 1);
+  const asaltoJ2 = eventos.find((e) => e.tipo === "asalto_exitoso" && e.atacanteId === 2);
+  const asaltoJ3 = eventos.find((e) => e.tipo === "asalto_exitoso" && e.atacanteId === 3);
+  assert.equal(asaltoJ1.enPinza, true);
+  assert.equal(asaltoJ2.enPinza, true);
+  assert.equal(asaltoJ3.enPinza, false, "queda como atacante solitario, ya elegimos el par 1-2 primero");
+  assert.equal(tesoros[claveGrupo([1, 2])] > 0, true);
+});
+
+test("agruparAliadosPinza: agrupa camarillas completas y determinismo ante empate", () => {
+  const alianzas = [
+    [1, 2],
+    [1, 3],
+    [2, 3],
+  ];
+  assert.deepEqual(agruparAliadosPinza([1, 2, 3], alianzas), [[1, 2, 3]]);
+
+  const alianzasParciales = [
+    [1, 2],
+    [2, 3],
+  ];
+  assert.deepEqual(agruparAliadosPinza([1, 2, 3], alianzasParciales), [[1, 2], [3]]);
+
+  assert.deepEqual(agruparAliadosPinza([1, 2, 3], []), [[1], [2], [3]]);
+});
+
+test("claveGrupo: estable sin importar el orden, generaliza claveAlianza para 2 ids", () => {
+  assert.equal(claveGrupo([3, 1, 2]), "1-2-3");
+  assert.equal(claveGrupo([2, 1]), claveAlianza(1, 2));
 });
 
 test("envío de oro entre aliados: se descuenta de uno y se suma al otro", () => {

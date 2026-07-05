@@ -11,6 +11,7 @@ import ModalRevelacion from "../components/ModalRevelacion.jsx";
 import ModalVotacionPergaminos from "../components/ModalVotacionPergaminos.jsx";
 import ModalPropuestaAlianza from "../components/ModalPropuestaAlianza.jsx";
 import ModalDueloTesoro from "../components/ModalDueloTesoro.jsx";
+import PanelChatAlianza from "../components/PanelChatAlianza.jsx";
 import BotonMute from "../components/BotonMute.jsx";
 import { useSonidos } from "../hooks/useSonidos.js";
 import { ETAPA_AMBICION } from "../utils/format.js";
@@ -37,6 +38,8 @@ export default function JuegoScreen() {
     dueloTesoro,
     dueloResultado,
     elegirDuelo,
+    mensajesAlianza,
+    enviarMensajeAlianza,
     esHost,
     limpiarRondaRevelada,
     limpiarVotacionRevelada,
@@ -121,6 +124,11 @@ export default function JuegoScreen() {
 
   const alRomperAlianza = async (objetivoId) => {
     const res = await romperAlianza(objetivoId);
+    if (!res.ok) setError(res.error);
+  };
+
+  const alEnviarMensajeAlianza = async (plantillaId, objetivoId) => {
+    const res = await enviarMensajeAlianza(plantillaId, objetivoId);
     if (!res.ok) setError(res.error);
   };
 
@@ -231,6 +239,13 @@ export default function JuegoScreen() {
           })}
         </div>
       </section>
+
+      <PanelChatAlianza
+        tengoAliados={misAliadosIds.size > 0}
+        rivales={rivales.filter((r) => !misAliadosIds.has(r.id))}
+        mensajes={mensajesAlianza}
+        onEnviar={alEnviarMensajeAlianza}
+      />
 
       <IndicadorSellado jugadores={snapshot.jugadores} />
 

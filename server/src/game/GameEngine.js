@@ -224,10 +224,56 @@ export function quitarAlianza(alianzas, a, b) {
   return alianzas.filter(([x, y]) => !((x === a && y === b) || (x === b && y === a)));
 }
 
-// Clave estable para identificar el tesoro compartido de un par de aliados,
-// sin importar el orden en que se pasen los ids.
+// Clave estable para identificar el tesoro compartido de un grupo de
+// aliados (2 o más), sin importar el orden en que se pasen los ids.
+export function claveGrupo(ids) {
+  return [...ids].sort((a, b) => a - b).join("-");
+}
+
+// Caso particular de claveGrupo para un par: se mantiene por compatibilidad
+// con el resto del código y los tests existentes.
 export function claveAlianza(a, b) {
-  return a < b ? `${a}-${b}` : `${b}-${a}`;
+  return claveGrupo([a, b]);
+}
+
+// Agrupa a los atacantes de un mismo objetivo en camarillas de aliados
+// mutuos (todos aliados entre sí) para el asalto en pinza: un trío que se
+// alió entre los tres comparte un solo tesoro, en vez de fragmentarse en
+// pares sueltos. Devuelve una lista de grupos; los de tamaño 1 son ataques
+// solitarios (sin bono de pinza). Determinista: ante empate de tamaño,
+// prioriza la camarilla con los ids más chicos.
+export function agruparAliadosPinza(idsAtacantes, alianzas) {
+  const restantes = [...idsAtacantes].sort((a, b) => a - b);
+  const grupos = [];
+
+  const esCamarilla = (ids) => {
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        if (!existeAlianza(alianzas, ids[i], ids[j])) return false;
+      }
+    }
+    return true;
+  };
+
+  const subconjuntos = (arr) => {
+    let resultado = [[]];
+    for (const x of arr) resultado = resultado.concat(resultado.map((s) => [...s, x]));
+    return resultado;
+  };
+
+  while (restantes.length > 0) {
+    const candidatos = subconjuntos(restantes)
+      .filter((s) => s.length >= 2 && esCamarilla(s))
+      .sort((a, b) => b.length - a.length || a[0] - b[0]);
+    const mejor = candidatos[0];
+    if (mejor) {
+      grupos.push(mejor);
+      for (const id of mejor) restantes.splice(restantes.indexOf(id), 1);
+    } else {
+      grupos.push([restantes.shift()]);
+    }
+  }
+  return grupos;
 }
 
 // Minijuego al romper una alianza por traición: piedra, papel o tijera en
@@ -264,8 +310,9 @@ export function resolverTraiciones(alianzas, acciones) {
 // `alianzas` son las alianzas vigentes AL CERRAR la ronda (ya sin las que se
 // rompieron por traición esta misma ronda, ver resolverTraiciones): habilitan
 // el bono de asalto en pinza, el envío de oro y el bono de defensa conjunta.
-// `tesoros` es el objeto { claveAlianza: monto } que se muta en el lugar: el
-// botín de cada asalto en pinza se acumula ahí en vez de ir al oro visible.
+// `tesoros` es el objeto { claveGrupo: monto } que se muta en el lugar: el
+// botín de cada asalto en pinza se acumula ahí (por camarilla de aliados
+// mutuos, 2 o más) en vez de ir al oro visible.
 // ---------------------------------------------------------------------------
 export function resolverRonda(jugadores, acciones, profeciaActiva = null, alianzas = [], tesoros = {}) {
   const eventos = [];
@@ -302,6 +349,13 @@ export function resolverRonda(jugadores, acciones, profeciaActiva = null, alianz
     lista.push(j.id);
     asaltantesPorObjetivo.set(acc.objetivoId, lista);
   }
+  // Camarillas de aliados mutuos por objetivo: un trío (o más) que se alió
+  // entre todos comparte un solo tesoro de pinza en vez de fragmentarse en
+  // pares sueltos (ver agruparAliadosPinza).
+  const gruposPinzaPorObjetivo = new Map();
+  for (const [objetivoId, atacantesIds] of asaltantesPorObjetivo) {
+    gruposPinzaPorObjetivo.set(objetivoId, agruparAliadosPinza(atacantesIds, alianzas));
+  }
 
   for (const atacante of orden) {
     const acc = obtenerAccion(atacante.id);
@@ -329,9 +383,9 @@ export function resolverRonda(jugadores, acciones, profeciaActiva = null, alianz
       }
     } else {
       const ambicioso = atacante.castillo >= ETAPA_AMBICION;
-      const companeros = (asaltantesPorObjetivo.get(objetivo.id) || []).filter((id) => id !== atacante.id);
-      const aliadoEnPinza = companeros.find((id) => existeAlianza(alianzas, atacante.id, id));
-      const enPinza = aliadoEnPinza != null;
+      const gruposPinza = gruposPinzaPorObjetivo.get(objetivo.id) || [];
+      const grupoPinza = gruposPinza.find((g) => g.length >= 2 && g.includes(atacante.id));
+      const enPinza = grupoPinza != null;
       const roboBase = objetivo.muralla ? ROBO_CON_MURALLA : ROBO_NORMAL;
       let robo = roboBase;
       if (ambicioso) robo *= MULTIPLICADOR_AMBICION;
@@ -340,8 +394,8 @@ export function resolverRonda(jugadores, acciones, profeciaActiva = null, alianz
       objetivo.oro -= robo;
       if (enPinza) {
         // El botín en pinza no se ve reflejado en el oro público: se guarda
-        // oculto en el tesoro compartido de la alianza.
-        const clave = claveAlianza(atacante.id, aliadoEnPinza);
+        // oculto en el tesoro compartido del grupo (2 o más aliados mutuos).
+        const clave = claveGrupo(grupoPinza);
         tesoros[clave] = (tesoros[clave] || 0) + robo;
       } else {
         atacante.oro += robo;
