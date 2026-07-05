@@ -313,13 +313,25 @@ export class Room {
   }
 
   // Chat entre aliados: mensajes rápidos y fijos (nunca texto libre del
-  // cliente) para coordinar ataques conjuntos o avisar intenciones.
-  enviarMensajeAlianza(jugadorId, plantillaId, objetivoId) {
+  // cliente) para coordinar ataques conjuntos o avisar intenciones. Si viene
+  // `paraId`, el mensaje es privado para ese aliado puntual (no le llega al
+  // resto); si no, se manda a todos tus aliados actuales — así se puede
+  // distinguir con quién se está hablando cuando hay varias alianzas.
+  enviarMensajeAlianza(jugadorId, plantillaId, objetivoId, paraId) {
     const plantilla = PLANTILLAS_MENSAJE_ALIANZA[plantillaId];
     if (!plantilla) throw new Error("Mensaje inválido.");
     const aliados = this.aliadosDe(jugadorId);
     if (aliados.size === 0) throw new Error("No tenés aliados a quién avisarles.");
     const jugador = this.jugadorPorId(jugadorId);
+
+    let para = null;
+    let destinatarios = aliados;
+    if (paraId != null && paraId !== "") {
+      const paraIdNum = Number(paraId);
+      if (!aliados.has(paraIdNum)) throw new Error("Ese jugador no es tu aliado.");
+      para = this.jugadorPorId(paraIdNum);
+      destinatarios = new Set([paraIdNum]);
+    }
 
     let texto;
     if (plantillaId === PLANTILLA_REQUIERE_OBJETIVO) {
@@ -330,10 +342,18 @@ export class Room {
       texto = plantilla();
     }
 
-    const payload = { deId: jugadorId, deNombre: jugador.nombre, deIcono: jugador.icono, texto, ts: Date.now() };
+    const payload = {
+      deId: jugadorId,
+      deNombre: jugador.nombre,
+      deIcono: jugador.icono,
+      texto,
+      ts: Date.now(),
+      paraId: para?.id ?? null,
+      paraNombre: para?.nombre ?? null,
+    };
     this.tocarActividad();
     if (jugador.socketId) this.io.to(jugador.socketId).emit("mensaje_alianza", payload);
-    for (const id of aliados) {
+    for (const id of destinatarios) {
       const aliado = this.jugadorPorId(id);
       if (aliado?.socketId) this.io.to(aliado.socketId).emit("mensaje_alianza", payload);
     }

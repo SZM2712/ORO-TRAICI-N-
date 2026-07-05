@@ -39,7 +39,7 @@ export function registrarHandlersAlianza(io, socket, roomManager) {
     const sala = roomManager.obtener(socket.data.roomCode);
     if (!sala) return ack?.({ ok: false, error: "Sala no encontrada." });
     try {
-      sala.enviarMensajeAlianza(socket.data.playerId, payload?.plantillaId, payload?.objetivoId);
+      sala.enviarMensajeAlianza(socket.data.playerId, payload?.plantillaId, payload?.objetivoId, payload?.paraId);
       ack?.({ ok: true });
     } catch (e) {
       ack?.({ ok: false, error: e.message });

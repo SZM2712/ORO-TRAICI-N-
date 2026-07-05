@@ -196,7 +196,7 @@ export function GameProvider({ children }) {
   const romperAlianza = useCallback((objetivoId) => emitirConAck("romper_alianza", { objetivoId }), []);
   const elegirDuelo = useCallback((eleccion) => emitirConAck("elegir_duelo", { eleccion }), []);
   const enviarMensajeAlianza = useCallback(
-    (plantillaId, objetivoId) => emitirConAck("mensaje_alianza", { plantillaId, objetivoId }),
+    (plantillaId, objetivoId, paraId) => emitirConAck("mensaje_alianza", { plantillaId, objetivoId, paraId }),
     []
   );
 

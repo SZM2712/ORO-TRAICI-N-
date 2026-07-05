@@ -9,6 +9,7 @@ const ARCHIVOS = {
   espadas: "/src/assets/sounds/espadas.mp3",
   fuego: "/src/assets/sounds/fuego.mp3",
   fanfarria: "/src/assets/sounds/fanfarria.mp3",
+  mensaje: "/src/assets/sounds/mensaje.mp3",
 };
 
 const CLAVE_MUTE = "oro_traicion_mute";

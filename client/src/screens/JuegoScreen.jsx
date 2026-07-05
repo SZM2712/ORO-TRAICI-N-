@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useGame } from "../state/GameContext.jsx";
 import Aldea from "../components/Aldea.jsx";
 import AldeaMiniatura from "../components/AldeaMiniatura.jsx";
@@ -87,6 +87,13 @@ export default function JuegoScreen() {
     }
   }, [rondaRevelada]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const cantidadMensajesAnterior = useRef(0);
+  useEffect(() => {
+    const nuevos = mensajesAlianza.slice(cantidadMensajesAnterior.current);
+    cantidadMensajesAnterior.current = mensajesAlianza.length;
+    if (miJugador && nuevos.some((m) => m.deId !== miJugador.id)) reproducir("mensaje");
+  }, [mensajesAlianza]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!miJugador) return <div className="flex-1 flex items-center justify-center text-crema/50">Cargando aldea…</div>;
 
   const rivales = snapshot.jugadores.filter((j) => j.id !== miJugador.id);
@@ -127,8 +134,8 @@ export default function JuegoScreen() {
     if (!res.ok) setError(res.error);
   };
 
-  const alEnviarMensajeAlianza = async (plantillaId, objetivoId) => {
-    const res = await enviarMensajeAlianza(plantillaId, objetivoId);
+  const alEnviarMensajeAlianza = async (plantillaId, objetivoId, paraId) => {
+    const res = await enviarMensajeAlianza(plantillaId, objetivoId, paraId);
     if (!res.ok) setError(res.error);
   };
 
@@ -241,9 +248,10 @@ export default function JuegoScreen() {
       </section>
 
       <PanelChatAlianza
-        tengoAliados={misAliadosIds.size > 0}
+        aliados={rivales.filter((r) => misAliadosIds.has(r.id))}
         rivales={rivales.filter((r) => !misAliadosIds.has(r.id))}
         mensajes={mensajesAlianza}
+        miJugadorId={miJugador.id}
         onEnviar={alEnviarMensajeAlianza}
       />
 
