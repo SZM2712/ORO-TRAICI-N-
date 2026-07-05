@@ -81,7 +81,7 @@ Cuando tengas los archivos, soltalos en `assets/svg/`, descomentá los imports e
 
 ## Sonidos
 
-`client/src/hooks/useSonidos.js` ya está listo para reproducirlos; si el archivo no existe todavía, falla en silencio y el juego sigue andando sin audio. Van en `client/src/assets/sounds/` (formato mp3):
+`client/src/hooks/useSonidos.js` ya está listo para reproducirlos; si el archivo no existe todavía, falla en silencio y el juego sigue andando sin audio. Van en `client/public/sounds/` —no en `src/`, para que el build de producción los sirva igual que en desarrollo— (formato mp3):
 
 | Archivo | Cuándo suena | Estilo sugerido | Duración |
 |---|---|---|---|
@@ -90,6 +90,8 @@ Cuando tengas los archivos, soltalos en `assets/svg/`, descomentá los imports e
 | `fuego.mp3` | Al incendiar una granja (antorcha) | Crepitar de fuego / whoosh | ~0.5–1s |
 | `fanfarria.mp3` | Al terminar la partida | Fanfarria triunfal, una sola vez | ~2–4s |
 | `mensaje.mp3` | Al recibir un mensaje del chat de aliados | Notificación corta y sutil | ~0.2–0.4s |
+
+Ya están cargados los 5 sonidos grabados por el equipo.
 
 ## Reglas implementadas (resumen)
 

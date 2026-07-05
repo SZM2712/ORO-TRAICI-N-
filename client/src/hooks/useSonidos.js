@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Howl } from "howler";
 
-// Sonidos cortos opcionales. Si los archivos no existen todavía (los agrega
-// el usuario en /assets/sounds), Howler simplemente falla en silencio y el
-// juego sigue funcionando sin audio.
+// Sonidos cortos opcionales, servidos desde client/public/sounds/ (no desde
+// src/) para que sobrevivan al build de producción, no solo al dev server.
+// Si algún archivo no existe todavía, Howler simplemente falla en silencio y
+// el juego sigue funcionando sin audio.
 const ARCHIVOS = {
-  moneda: "/src/assets/sounds/moneda.mp3",
-  espadas: "/src/assets/sounds/espadas.mp3",
-  fuego: "/src/assets/sounds/fuego.mp3",
-  fanfarria: "/src/assets/sounds/fanfarria.mp3",
-  mensaje: "/src/assets/sounds/mensaje.mp3",
+  moneda: "/sounds/moneda.mp3",
+  espadas: "/sounds/espadas.mp3",
+  fuego: "/sounds/fuego.mp3",
+  fanfarria: "/sounds/fanfarria.mp3",
+  mensaje: "/sounds/mensaje.mp3",
 };
 
 const CLAVE_MUTE = "oro_traicion_mute";
