@@ -13,7 +13,35 @@ const ARCHIVOS = {
   mensaje: "/sounds/mensaje.mp3",
 };
 
+const RUTA_MUSICA_FONDO = "/sounds/musica-fondo.mp3";
+const VOLUMEN_MUSICA = 0.22;
 const CLAVE_MUTE = "oro_traicion_mute";
+
+// La música de fondo es una única instancia global (no una por hook): así
+// cualquier pantalla puede iniciarla/detenerla/mutearla sin tener que
+// sincronizar estado entre múltiples llamadas a useSonidos().
+let musicaFondo = null;
+function obtenerMusicaFondo() {
+  if (!musicaFondo) {
+    musicaFondo = new Howl({ src: [RUTA_MUSICA_FONDO], loop: true, volume: 0, onloaderror: () => {} });
+  }
+  return musicaFondo;
+}
+
+export function iniciarMusica() {
+  const m = obtenerMusicaFondo();
+  m.mute(localStorage.getItem(CLAVE_MUTE) === "1");
+  if (!m.playing()) {
+    m.play();
+    m.fade(0, VOLUMEN_MUSICA, 1200);
+  }
+}
+
+export function detenerMusica() {
+  if (!musicaFondo?.playing()) return;
+  musicaFondo.fade(VOLUMEN_MUSICA, 0, 800);
+  setTimeout(() => musicaFondo?.stop(), 850);
+}
 
 export function useSonidos() {
   const howls = useRef({});
@@ -30,6 +58,7 @@ export function useSonidos() {
 
   useEffect(() => {
     localStorage.setItem(CLAVE_MUTE, silenciado ? "1" : "0");
+    obtenerMusicaFondo().mute(silenciado);
   }, [silenciado]);
 
   const reproducir = useCallback(

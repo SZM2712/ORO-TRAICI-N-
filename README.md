@@ -90,8 +90,9 @@ Cuando tengas los archivos, soltalos en `assets/svg/`, descomentá los imports e
 | `fuego.mp3` | Al incendiar una granja (antorcha) | Crepitar de fuego / whoosh | ~0.5–1s |
 | `fanfarria.mp3` | Al terminar la partida | Fanfarria triunfal, una sola vez | ~2–4s |
 | `mensaje.mp3` | Al recibir un mensaje del chat de aliados | Notificación corta y sutil | ~0.2–0.4s |
+| `musica-fondo.mp3` | Música ambiente en loop mientras hay una partida abierta (lobby, juego o pantalla final) | Medieval instrumental (laúd/cuerdas), que cierre en loop sin corte brusco | sin límite fijo, pensada para repetirse |
 
-Ya están cargados los 5 sonidos grabados por el equipo.
+Ya están cargados los 5 efectos grabados por el equipo. `musica-fondo.mp3` todavía falta: `iniciarMusica()`/`detenerMusica()` (en `useSonidos.js`, con fundido de entrada/salida y mute compartido con el botón de sonido) ya están conectados en `App.jsx`, listos para reproducirla en cuanto se suba el archivo con ese nombre.
 
 ## Reglas implementadas (resumen)
 

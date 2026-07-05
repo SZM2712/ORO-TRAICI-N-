@@ -1,13 +1,22 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useGame } from "./state/GameContext.jsx";
 import InicioScreen from "./screens/InicioScreen.jsx";
 import LobbyScreen from "./screens/LobbyScreen.jsx";
 import JuegoScreen from "./screens/JuegoScreen.jsx";
 import VictoriaScreen from "./screens/VictoriaScreen.jsx";
 import ErrorToast from "./components/ErrorToast.jsx";
+import { iniciarMusica, detenerMusica } from "./hooks/useSonidos.js";
 
 export default function App() {
   const { sesion, snapshot, conectado } = useGame();
+
+  // Música de fondo en loop mientras haya una partida abierta (lobby, en
+  // curso o pantalla final); se detiene al volver a la pantalla de inicio.
+  const enPartida = Boolean(sesion && snapshot);
+  useEffect(() => {
+    if (enPartida) iniciarMusica();
+    else detenerMusica();
+  }, [enPartida]);
 
   let pantalla;
   if (!sesion || !snapshot) {
