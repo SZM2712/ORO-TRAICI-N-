@@ -258,7 +258,12 @@ export default function JuegoScreen() {
       <IndicadorSellado jugadores={snapshot.jugadores} />
 
       {apuntandoAAliado && (
-        <p className="text-xs text-sangre text-center -mt-2">⚠️ Es tu aliado: asaltarlo rompe la alianza y queda marcado como traición.</p>
+        <p className="text-xs text-sangre text-center -mt-2">
+          ⚠️ Es tu aliado: asaltarlo rompe la alianza y queda marcado como traición.{" "}
+          {tesorosAlianza[borrador.objetivoId] > 0
+            ? `Se van a disputar a piedra, papel o tijera los ${tesorosAlianza[borrador.objetivoId]} de oro del tesoro secreto.`
+            : "Todavía no tienen tesoro secreto en común (hace falta un asalto en pinza antes), así que no hay nada que disputar."}
+        </p>
       )}
 
       <PanelAcciones
