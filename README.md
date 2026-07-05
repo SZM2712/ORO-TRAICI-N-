@@ -93,23 +93,31 @@ Cuando tengas los archivos, soltalos en `assets/svg/`, descomentá los imports e
 
 ## Despliegue
 
-### Backend (Render o Fly.io, free tier)
+### Todo en Render (recomendado): un solo Blueprint
 
-**Render:**
-1. Nuevo *Web Service* apuntando a este repo, *Root Directory*: `server`.
-2. Build command: `npm install` — Start command: `npm start`.
-3. Variable de entorno `CLIENT_ORIGIN` con la URL de Netlify (ej. `https://tu-juego.netlify.app`).
-4. Anotá la URL pública que te da Render (ej. `https://oro-y-traicion.onrender.com`).
+Este repo trae `render.yaml` en la raíz, que define los dos servicios (backend + frontend) de una:
 
-**Fly.io** (alternativa): `fly launch` desde `/server`, exponiendo el puerto de `PORT`, y `fly secrets set CLIENT_ORIGIN=https://tu-juego.netlify.app`.
+1. En [Render](https://dashboard.render.com), **New +** → **Blueprint**.
+2. Conectá tu cuenta de GitHub y elegí este repo (`SZM2712/ORO-TRAICI-N-`).
+3. Render lee `render.yaml` solo y te propone crear:
+   - `oro-y-traicion-server` (Web Service, Node, carpeta `server/`)
+   - `oro-y-traicion-client` (Static Site, carpeta `client/`, build con Vite)
+4. Click en **Apply** — listo, quedan las dos URLs públicas (`https://oro-y-traicion-server.onrender.com` y `https://oro-y-traicion-client.onrender.com`) ya conectadas entre sí (`CLIENT_ORIGIN` y `VITE_SERVER_URL` vienen precargadas en el YAML).
 
-> Los planes gratuitos de Render "duermen" el servicio tras inactividad: la primera conexión después de un rato puede tardar unos segundos en despertar — es normal.
+> Si Render te avisa que alguno de esos dos nombres ya está tomado por otra cuenta, te asigna uno con sufijo random — en ese caso hay que entrar a **Settings → Environment** de cada servicio y actualizar `CLIENT_ORIGIN` (en el server) y `VITE_SERVER_URL` (en el client) con las URLs reales, y volver a desplegar.
 
-### Frontend (Netlify)
+> El plan gratuito de Render "duerme" el backend tras 15 min de inactividad: la primera conexión después de un rato puede tardar unos segundos en despertar — es normal.
 
+### Alternativa: backend en Fly.io + frontend en Netlify
+
+Si preferís repartir los servicios en otras plataformas:
+
+**Backend (Fly.io):** `fly launch` desde `/server`, exponiendo el puerto de `PORT`, y `fly secrets set CLIENT_ORIGIN=https://tu-juego.netlify.app`.
+
+**Frontend (Netlify):**
 1. Nuevo sitio desde este repo, *Base directory*: `client`.
 2. Build command: `npm run build` — Publish directory: `client/dist`.
-3. Variable de entorno `VITE_SERVER_URL` con la URL pública del backend (ej. `https://oro-y-traicion.onrender.com`).
+3. Variable de entorno `VITE_SERVER_URL` con la URL pública del backend.
 4. El archivo `client/public/_redirects` ya está listo para que las rutas del SPA funcionen en Netlify.
 
 Con eso, cualquiera puede entrar desde su celular a la URL de Netlify, crear o unirse a una sala con el código de 4 letras, y jugar en tiempo real.
