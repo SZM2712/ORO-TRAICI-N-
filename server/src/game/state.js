@@ -39,6 +39,7 @@ export function crearEstadoSala(code) {
     alianzas: [], // [idA, idB][] pares canónicos (idA < idB), públicos para toda la sala
     propuestasAlianza: [], // { deId, aId }[] pendientes de respuesta, privadas
     tesorosAlianza: {}, // claveAlianza(a,b) -> monto oculto, solo visible para esos dos jugadores
+    duelosTesoro: {}, // claveAlianza(a,b) -> { aId, bId, monto, elecciones: {} } — piedra/papel/tijera por traición
     sueteMuerte: false,
     terminada: false,
     ganadorId: null,

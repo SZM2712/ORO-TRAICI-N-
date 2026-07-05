@@ -10,6 +10,7 @@ import AlertaPanico from "../components/AlertaPanico.jsx";
 import ModalRevelacion from "../components/ModalRevelacion.jsx";
 import ModalVotacionPergaminos from "../components/ModalVotacionPergaminos.jsx";
 import ModalPropuestaAlianza from "../components/ModalPropuestaAlianza.jsx";
+import ModalDueloTesoro from "../components/ModalDueloTesoro.jsx";
 import BotonMute from "../components/BotonMute.jsx";
 import { useSonidos } from "../hooks/useSonidos.js";
 import { ETAPA_AMBICION } from "../utils/format.js";
@@ -33,6 +34,9 @@ export default function JuegoScreen() {
     proponerAlianza,
     responderAlianza,
     romperAlianza,
+    dueloTesoro,
+    dueloResultado,
+    elegirDuelo,
     esHost,
     limpiarRondaRevelada,
     limpiarVotacionRevelada,
@@ -265,6 +269,12 @@ export default function JuegoScreen() {
       )}
 
       <ModalPropuestaAlianza propuesta={propuestaAlianzaRecibida} onResponder={responderAlianza} />
+      <ModalDueloTesoro
+        dueloTesoro={dueloTesoro}
+        dueloResultado={dueloResultado}
+        jugadores={snapshot.jugadores}
+        onElegir={elegirDuelo}
+      />
     </div>
   );
 }

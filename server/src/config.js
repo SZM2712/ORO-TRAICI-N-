@@ -42,9 +42,15 @@ export const BONUS_DEFENSA_CONJUNTA = 1;
 // crece un poco cada ronda que la alianza se mantiene en pie.
 export const INTERES_TESORO_ALIANZA = 0.1;
 
-// Minijuego al romper una alianza por traición: quien fue traicionado tiene
-// más chances de quedarse con todo el tesoro compartido, como compensación.
-export const PROBABILIDAD_TRAICIONADO_GANA_TESORO = 0.6;
+// Impuesto a la corona: cualquier reparto del tesoro compartido de una
+// alianza rota (formal o por traición) pierde este porcentaje, que no se
+// queda nadie — es "para el rey", como penalización por romper el pacto.
+export const PORCENTAJE_TESORO_AL_REY = 0.2;
+
+// Minijuego al romper una alianza por traición: piedra, papel o tijera en
+// vivo entre los dos ex aliados decide quién se queda con el resto del
+// tesoro — para que ganarlo no dependa solo de haber atacado primero.
+export const DUELO_ELECCION_TIMEOUT_MS = 20_000;
 
 export const LIMITE_RONDAS = 20;
 export const RONDAS_PROFECIA = [1, 5, 10];

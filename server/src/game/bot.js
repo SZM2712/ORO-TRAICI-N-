@@ -90,3 +90,10 @@ export function decidirPropuestaAlianzaBot(candidatosIds, rng = Math.random) {
   if (candidatosIds.length === 0 || rng() > 0.2) return null;
   return candidatosIds[Math.floor(rng() * candidatosIds.length)];
 }
+
+// Elección del bot en el duelo de piedra, papel o tijera por el tesoro
+// compartido de una alianza rota por traición: al azar, sin patrón.
+export function decidirEleccionDueloBot(rng = Math.random) {
+  const opciones = ["piedra", "papel", "tijera"];
+  return opciones[Math.floor(rng() * opciones.length)];
+}

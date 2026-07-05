@@ -16,7 +16,14 @@ export function GameProvider({ children }) {
   const [propuestaAlianzaRecibida, setPropuestaAlianzaRecibida] = useState(null); // { deId, deNombre, deIcono }
   const [tesorosAlianza, setTesorosAlianza] = useState({}); // { [aliadoId]: monto } — privado, solo lo que me llega a mí
   const [alianzaRechazadaId, setAlianzaRechazadaId] = useState(null); // objetivoId cuya propuesta acaban de rechazar
+  const [dueloTesoro, setDueloTesoro] = useState(null); // { conId, monto } — duelo piedra/papel/tijera pendiente
+  const [dueloResultado, setDueloResultado] = useState(null); // { gane, premio, impuesto, miEleccion, rivalEleccion }
   const intentoReconexion = useRef(false);
+  const sesionRef = useRef(null);
+
+  useEffect(() => {
+    sesionRef.current = sesion;
+  }, [sesion]);
 
   useEffect(() => {
     socket.connect();
@@ -74,6 +81,32 @@ export function GameProvider({ children }) {
     function alTesoroAlianza(payload) {
       setTesorosAlianza((prev) => ({ ...prev, [payload.conId]: payload.monto }));
     }
+    function alDueloTesoroIniciado(payload) {
+      setDueloTesoro(payload);
+      setDueloResultado(null);
+    }
+    function alDueloTesoroEmpate(payload) {
+      const miId = sesionRef.current?.playerId;
+      if (miId == null || (payload.a !== miId && payload.b !== miId)) return;
+      setError("Empate en el duelo por el tesoro — se repite.");
+    }
+    function alDueloTesoroResuelto(payload) {
+      const miId = sesionRef.current?.playerId;
+      if (miId == null) return;
+      const soyGanador = payload.ganadorId === miId;
+      const soyPerdedor = payload.perdedorId === miId;
+      if (!soyGanador && !soyPerdedor) return;
+      setDueloTesoro(null);
+      setDueloResultado({
+        gane: soyGanador,
+        premio: payload.premio,
+        impuesto: payload.impuesto,
+        rivalId: soyGanador ? payload.perdedorId : payload.ganadorId,
+        miEleccion: soyGanador ? payload.eleccionGanador : payload.eleccionPerdedor,
+        rivalEleccion: soyGanador ? payload.eleccionPerdedor : payload.eleccionGanador,
+      });
+      setTimeout(() => setDueloResultado(null), 6000);
+    }
 
     socket.on("connect", alConectar);
     socket.on("disconnect", alDesconectar);
@@ -87,6 +120,9 @@ export function GameProvider({ children }) {
     socket.on("alianza_propuesta", alAlianzaPropuesta);
     socket.on("alianza_rechazada", alAlianzaRechazada);
     socket.on("tesoro_alianza", alTesoroAlianza);
+    socket.on("duelo_tesoro_iniciado", alDueloTesoroIniciado);
+    socket.on("duelo_tesoro_empate", alDueloTesoroEmpate);
+    socket.on("duelo_tesoro_resuelto", alDueloTesoroResuelto);
 
     return () => {
       socket.off("connect", alConectar);
@@ -101,6 +137,9 @@ export function GameProvider({ children }) {
       socket.off("alianza_propuesta", alAlianzaPropuesta);
       socket.off("alianza_rechazada", alAlianzaRechazada);
       socket.off("tesoro_alianza", alTesoroAlianza);
+      socket.off("duelo_tesoro_iniciado", alDueloTesoroIniciado);
+      socket.off("duelo_tesoro_empate", alDueloTesoroEmpate);
+      socket.off("duelo_tesoro_resuelto", alDueloTesoroResuelto);
     };
   }, []);
 
@@ -133,6 +172,8 @@ export function GameProvider({ children }) {
     setContenidoOraculo(null);
     setPropuestaAlianzaRecibida(null);
     setTesorosAlianza({});
+    setDueloTesoro(null);
+    setDueloResultado(null);
   }, []);
 
   const empezarPartida = useCallback((opciones) => emitirConAck("empezar", opciones), []);
@@ -146,6 +187,7 @@ export function GameProvider({ children }) {
     return emitirConAck("responder_alianza", { deId, aceptar });
   }, []);
   const romperAlianza = useCallback((objetivoId) => emitirConAck("romper_alianza", { objetivoId }), []);
+  const elegirDuelo = useCallback((eleccion) => emitirConAck("elegir_duelo", { eleccion }), []);
 
   const miJugador = snapshot?.jugadores?.find((j) => j.id === sesion?.playerId) || null;
   const esHost = Boolean(miJugador?.esHost);
@@ -165,6 +207,8 @@ export function GameProvider({ children }) {
     tesorosAlianza,
     alianzaRechazadaId,
     limpiarAlianzaRechazada: () => setAlianzaRechazadaId(null),
+    dueloTesoro,
+    dueloResultado,
     miJugador,
     esHost,
     crearSala,
@@ -178,6 +222,7 @@ export function GameProvider({ children }) {
     proponerAlianza,
     responderAlianza,
     romperAlianza,
+    elegirDuelo,
     limpiarRondaRevelada: () => setRondaRevelada(null),
     limpiarVotacionRevelada: () => setVotacionRevelada(null),
   };

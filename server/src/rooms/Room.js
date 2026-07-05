@@ -6,6 +6,8 @@ import {
   ANIMALES,
   ETAPA_AMBICION,
   INTERES_TESORO_ALIANZA,
+  PORCENTAJE_TESORO_AL_REY,
+  DUELO_ELECCION_TIMEOUT_MS,
 } from "../config.js";
 import { crearEstadoSala, crearJugador, jugadorPublico } from "../game/state.js";
 import {
@@ -21,7 +23,7 @@ import {
   quitarAlianza,
   claveAlianza,
   resolverTraiciones,
-  resolverTesoroTraicion,
+  resolverPiedraPapelTijera,
 } from "../game/GameEngine.js";
 import { narrarEventos } from "../game/narrativa.js";
 import { generarPlayerToken } from "../utils/ids.js";
@@ -31,6 +33,7 @@ import {
   decidirVotoBot,
   decidirRespuestaAlianzaBot,
   decidirPropuestaAlianzaBot,
+  decidirEleccionDueloBot,
 } from "../game/bot.js";
 
 const DEMORA_BOT_MIN_MS = 900;
@@ -241,11 +244,15 @@ export class Room {
     this.tocarActividad();
 
     if (monto > 0) {
-      const mitad = Math.floor(monto / 2);
+      const impuesto = Math.floor(monto * PORCENTAJE_TESORO_AL_REY);
+      const repartible = monto - impuesto;
+      const mitad = Math.floor(repartible / 2);
       jugador.oro += mitad;
-      objetivo.oro += monto - mitad;
+      objetivo.oro += repartible - mitad;
       this.estado.historial.push(
-        `💔🤝 ${jugador.icono} ${jugador.nombre} y ${objetivo.icono} ${objetivo.nombre} rompieron su alianza en buenos términos y se repartieron ${monto} de oro de su tesoro secreto (${mitad}/${monto - mitad}).`
+        `💔🤝 ${jugador.icono} ${jugador.nombre} y ${objetivo.icono} ${objetivo.nombre} rompieron su alianza en buenos términos y se repartieron ${repartible} de oro de su tesoro secreto (${mitad}/${
+          repartible - mitad
+        }) — ${impuesto} de oro fueron a la corona como impuesto.`
       );
     } else {
       this.estado.historial.push(`💔🤝 ${jugador.icono} ${jugador.nombre} y ${objetivo.icono} ${objetivo.nombre} rompieron su alianza en buenos términos.`);
@@ -261,6 +268,85 @@ export class Room {
     const b = this.jugadorPorId(bId);
     if (a?.socketId) this.io.to(a.socketId).emit("tesoro_alianza", { conId: bId, monto });
     if (b?.socketId) this.io.to(b.socketId).emit("tesoro_alianza", { conId: aId, monto });
+  }
+
+  // ---------------------------------------------------------------------
+  // Duelo de piedra/papel/tijera por el tesoro de una alianza rota por
+  // traición: se arranca después de revelar la ronda, se resuelve en
+  // cuanto ambos eligieron (o al azar si alguno no elige a tiempo).
+  // ---------------------------------------------------------------------
+  iniciarDueloTesoro(aId, bId, monto) {
+    const clave = claveAlianza(aId, bId);
+    this.estado.duelosTesoro[clave] = { aId, bId, monto, elecciones: {} };
+    const a = this.jugadorPorId(aId);
+    const b = this.jugadorPorId(bId);
+    if (a?.socketId) this.io.to(a.socketId).emit("duelo_tesoro_iniciado", { conId: bId, monto });
+    if (b?.socketId) this.io.to(b.socketId).emit("duelo_tesoro_iniciado", { conId: aId, monto });
+
+    for (const jugador of [a, b]) {
+      if (!jugador?.esBot) continue;
+      const demora = DEMORA_BOT_MIN_MS + Math.random() * DEMORA_BOT_MAX_MS;
+      const handle = setTimeout(() => this.elegirDuelo(jugador.id, decidirEleccionDueloBot()), demora);
+      this.timeoutsBots.push(handle);
+    }
+
+    this.timers[`duelo_${clave}`] = setTimeout(() => this.forzarDuelo(clave), DUELO_ELECCION_TIMEOUT_MS);
+  }
+
+  elegirDuelo(jugadorId, eleccion) {
+    if (!["piedra", "papel", "tijera"].includes(eleccion)) throw new Error("Elección inválida.");
+    const entrada = Object.entries(this.estado.duelosTesoro).find(([, d]) => d.aId === jugadorId || d.bId === jugadorId);
+    if (!entrada) throw new Error("No tenés ningún duelo pendiente.");
+    const [clave, duelo] = entrada;
+    if (duelo.elecciones[jugadorId]) return; // ya eligió
+    duelo.elecciones[jugadorId] = eleccion;
+    this.tocarActividad();
+    if (duelo.elecciones[duelo.aId] && duelo.elecciones[duelo.bId]) {
+      this.resolverDuelo(clave);
+    }
+  }
+
+  forzarDuelo(clave) {
+    const duelo = this.estado.duelosTesoro[clave];
+    if (!duelo) return;
+    for (const id of [duelo.aId, duelo.bId]) {
+      if (!duelo.elecciones[id]) duelo.elecciones[id] = elegirAlAzarLocal(["piedra", "papel", "tijera"]);
+    }
+    this.resolverDuelo(clave);
+  }
+
+  resolverDuelo(clave) {
+    const duelo = this.estado.duelosTesoro[clave];
+    if (!duelo) return;
+    this.limpiarTimer(`duelo_${clave}`);
+
+    const eleccionA = duelo.elecciones[duelo.aId];
+    const eleccionB = duelo.elecciones[duelo.bId];
+    const resultado = resolverPiedraPapelTijera(eleccionA, eleccionB);
+
+    if (resultado === "empate") {
+      this.estado.historial.push(`🪨📄✂️ Empate (${eleccionA} vs ${eleccionB}) en el duelo por el tesoro secreto — se repite.`);
+      this.emitirATodos("duelo_tesoro_empate", { a: duelo.aId, b: duelo.bId });
+      this.iniciarDueloTesoro(duelo.aId, duelo.bId, duelo.monto);
+      return;
+    }
+
+    delete this.estado.duelosTesoro[clave];
+    const ganadorId = resultado === "a" ? duelo.aId : duelo.bId;
+    const perdedorId = resultado === "a" ? duelo.bId : duelo.aId;
+    const eleccionGanador = resultado === "a" ? eleccionA : eleccionB;
+    const eleccionPerdedor = resultado === "a" ? eleccionB : eleccionA;
+    const impuesto = Math.floor(duelo.monto * PORCENTAJE_TESORO_AL_REY);
+    const premio = duelo.monto - impuesto;
+
+    this.jugadorPorId(ganadorId).oro += premio;
+    const ganador = this.jugadorPorId(ganadorId);
+    const perdedor = this.jugadorPorId(perdedorId);
+    this.estado.historial.push(
+      `🗡️🪨📄✂️ Duelo por el tesoro secreto: ${ganador.icono} ${ganador.nombre} (${eleccionGanador}) le ganó a ${perdedor.icono} ${perdedor.nombre} (${eleccionPerdedor}) y se llevó ${premio} de oro — ${impuesto} fueron a la corona.`
+    );
+    this.emitirATodos("duelo_tesoro_resuelto", { ganadorId, perdedorId, premio, impuesto, eleccionGanador, eleccionPerdedor });
+    this.emitirSnapshot();
   }
 
   programarBotsAlianza() {
@@ -579,19 +665,17 @@ export class Room {
     const { traiciones, alianzasRestantes } = resolverTraiciones(this.estado.alianzas, this.estado.accionesPendientes);
     this.estado.alianzas = alianzasRestantes;
 
-    // Minijuego (moneda cargada) para repartirse el tesoro de una alianza
-    // rota por traición: no se lo queda automáticamente quien atacó primero.
-    const eventosTesoro = [];
+    // El tesoro de una alianza rota por traición no se reparte solo: se
+    // decide con un duelo de piedra/papel/tijera arrancado después de
+    // revelar la ronda (ver más abajo), para que se vea el monto en juego
+    // antes de que empiece la disputa.
+    const duelosAIniciar = [];
     for (const t of traiciones) {
       const clave = claveAlianza(t.atacanteId, t.objetivoId);
       const monto = this.estado.tesorosAlianza[clave];
       if (!monto) continue;
       delete this.estado.tesorosAlianza[clave];
-      const ganaTraicionado = resolverTesoroTraicion();
-      const ganadorId = ganaTraicionado ? t.objetivoId : t.atacanteId;
-      const perdedorId = ganadorId === t.atacanteId ? t.objetivoId : t.atacanteId;
-      this.jugadorPorId(ganadorId).oro += monto;
-      eventosTesoro.push({ tipo: "tesoro_disputado", ganadorId, perdedorId, monto });
+      duelosAIniciar.push({ aId: t.atacanteId, bId: t.objetivoId, monto });
     }
 
     const { eventos: eventosCombate } = resolverRonda(
@@ -601,7 +685,7 @@ export class Room {
       this.estado.alianzas,
       this.estado.tesorosAlianza
     );
-    const eventos = [...traiciones, ...eventosTesoro, ...eventosCombate];
+    const eventos = [...traiciones, ...eventosCombate];
 
     for (const [a, b] of this.estado.alianzas) {
       this.emitirTesoroAlianza(a, b);
@@ -632,6 +716,15 @@ export class Room {
     if (fin.terminada) {
       this.finalizar(fin.ganadorId);
       return;
+    }
+
+    for (const duelo of duelosAIniciar) {
+      const a = this.jugadorPorId(duelo.aId);
+      const b = this.jugadorPorId(duelo.bId);
+      this.estado.historial.push(
+        `🗡️💔 ¡El tesoro secreto (${duelo.monto} de oro) de ${a.icono} ${a.nombre} y ${b.icono} ${b.nombre} se disputa a piedra, papel o tijera!`
+      );
+      this.iniciarDueloTesoro(duelo.aId, duelo.bId, duelo.monto);
     }
 
     this.emitirSnapshot();

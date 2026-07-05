@@ -15,7 +15,6 @@ import {
   MULTIPLICADOR_AMBICION,
   MULTIPLICADOR_PINZA,
   BONUS_DEFENSA_CONJUNTA,
-  PROBABILIDAD_TRAICIONADO_GANA_TESORO,
 } from "../config.js";
 import { MAZO_PROFECIAS } from "./prophecies.js";
 import { puntaje } from "./state.js";
@@ -231,11 +230,12 @@ export function claveAlianza(a, b) {
   return a < b ? `${a}-${b}` : `${b}-${a}`;
 }
 
-// Minijuego al romper una alianza por traición: una moneda cargada a favor
-// del traicionado, para que quedarse el tesoro no dependa solo de haber
-// atacado primero.
-export function resolverTesoroTraicion(rng = Math.random) {
-  return rng() < PROBABILIDAD_TRAICIONADO_GANA_TESORO;
+// Minijuego al romper una alianza por traición: piedra, papel o tijera en
+// vivo entre los dos ex aliados. Devuelve "a", "b" o "empate".
+export function resolverPiedraPapelTijera(eleccionA, eleccionB) {
+  if (eleccionA === eleccionB) return "empate";
+  const leGanaA = { piedra: "tijera", papel: "piedra", tijera: "papel" };
+  return leGanaA[eleccionA] === eleccionB ? "a" : "b";
 }
 
 // Un aliado que asalta a su aliado rompe la alianza en el acto: se detecta

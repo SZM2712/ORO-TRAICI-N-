@@ -10,7 +10,7 @@ import {
   quitarAlianza,
   claveAlianza,
   resolverTraiciones,
-  resolverTesoroTraicion,
+  resolverPiedraPapelTijera,
   aplicarEfectoProfecia,
 } from "../src/game/GameEngine.js";
 
@@ -401,7 +401,11 @@ test("quitarAlianza: quita el par exacto sin tocar los demás", () => {
   assert.deepEqual(quitarAlianza(alianzas, 5, 6), alianzas, "no toca pares que no coinciden");
 });
 
-test("resolverTesoroTraicion: respeta el rng inyectado (moneda cargada a favor del traicionado)", () => {
-  assert.equal(resolverTesoroTraicion(() => 0.1), true, "rng bajo -> gana el traicionado");
-  assert.equal(resolverTesoroTraicion(() => 0.9), false, "rng alto -> gana el traidor");
+test("resolverPiedraPapelTijera: reglas clásicas", () => {
+  assert.equal(resolverPiedraPapelTijera("piedra", "tijera"), "a", "piedra le gana a tijera");
+  assert.equal(resolverPiedraPapelTijera("tijera", "piedra"), "b", "piedra le gana a tijera (invertido)");
+  assert.equal(resolverPiedraPapelTijera("papel", "piedra"), "a", "papel le gana a piedra");
+  assert.equal(resolverPiedraPapelTijera("tijera", "papel"), "a", "tijera le gana a papel");
+  assert.equal(resolverPiedraPapelTijera("piedra", "piedra"), "empate");
+  assert.equal(resolverPiedraPapelTijera("papel", "papel"), "empate");
 });
