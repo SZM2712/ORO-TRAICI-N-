@@ -2,6 +2,7 @@
 // la UI. La validación real y definitiva de oro/legalidad vive en el servidor.
 export const COSTOS_BASE = { granja: 3, muralla: 5, oraculo: 4, castillo: [7, 9, 11] };
 export const MAX_GRANJAS = 4;
+export const ETAPA_AMBICION = 2;
 
 export const NOMBRES_ITEM = {
   granja: "Granja 🌾",

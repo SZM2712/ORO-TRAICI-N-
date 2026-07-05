@@ -1,4 +1,5 @@
 import { costoDeItem } from "./GameEngine.js";
+import { ETAPA_AMBICION } from "../config.js";
 
 export const NOMBRES_BOTS = ["Centinela", "Bárbaro", "Mercader", "Templario", "Cuervo", "Forjador", "Nómade"];
 
@@ -37,7 +38,11 @@ export function decidirAccionBot(jugador, jugadores, aliadosIds = new Set(), rng
   const probabilidadAsalto = hayAlternativaLeal ? 0.25 : 0.08; // traicionar a un aliado cuesta más
 
   if (candidatosAsalto.length > 0 && rng() < probabilidadAsalto) {
-    const objetivo = candidatosAsalto[Math.floor(rng() * candidatosAsalto.length)];
+    // Si hay alguien con la corona (etapa 2+), el resto tiende a ir contra
+    // él primero: es quien más botín rinde y el mayor riesgo de que gane.
+    const amenazas = candidatosAsalto.filter((r) => r.castillo >= ETAPA_AMBICION);
+    const pool = amenazas.length > 0 && rng() < 0.7 ? amenazas : candidatosAsalto;
+    const objetivo = pool[Math.floor(rng() * pool.length)];
     const antorcha = !jugador.antorchaUsada && rng() < 0.2;
     return { tipo: "asaltar", objetivoId: objetivo.id, antorcha };
   }

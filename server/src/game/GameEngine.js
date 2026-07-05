@@ -11,6 +11,8 @@ import {
   TRIBUTO_BLOQUEO,
   BONUS_DEFENDER,
   LIMITE_RONDAS,
+  ETAPA_AMBICION,
+  MULTIPLICADOR_AMBICION,
 } from "../config.js";
 import { MAZO_PROFECIAS } from "./prophecies.js";
 import { puntaje } from "./state.js";
@@ -271,7 +273,9 @@ export function resolverRonda(jugadores, acciones, profeciaActiva = null) {
         eventos.push({ tipo: "antorcha_desperdiciada", atacanteId: atacante.id, objetivoId: objetivo.id });
       }
     } else {
-      const robo = Math.min(objetivo.muralla ? ROBO_CON_MURALLA : ROBO_NORMAL, objetivo.oro);
+      const ambicioso = atacante.castillo >= ETAPA_AMBICION;
+      const roboBase = objetivo.muralla ? ROBO_CON_MURALLA : ROBO_NORMAL;
+      const robo = Math.min(ambicioso ? roboBase * MULTIPLICADOR_AMBICION : roboBase, objetivo.oro);
       atacante.oro += robo;
       objetivo.oro -= robo;
       eventos.push({
@@ -280,6 +284,7 @@ export function resolverRonda(jugadores, acciones, profeciaActiva = null) {
         objetivoId: objetivo.id,
         robo,
         muralla: objetivo.muralla,
+        ambicioso,
       });
       if (acc.antorcha) {
         atacante.antorchaUsada = true;

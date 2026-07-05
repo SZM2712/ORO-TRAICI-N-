@@ -124,6 +124,23 @@ test("muralla reduce el robo de 3 a 2", () => {
   assert.ok(eventos.some((e) => e.tipo === "asalto_exitoso" && e.robo === 2 && e.muralla === true));
 });
 
+test("ambición del trono: el atacante con castillo etapa 2+ roba el doble", () => {
+  const [j1, j2] = tresJugadores();
+  j1.oro = 10; // suficiente oro para no toparse con el límite del robo
+  j2.castillo = 2; // j2 es quien asalta, con la corona
+  const { eventos } = resolverRonda([j1, j2], { 1: { tipo: "cosechar" }, 2: { tipo: "asaltar", objetivoId: 1, antorcha: false } });
+  assert.equal(j1.oro, 10 - 6 + 3, "le robaron el doble (6) en vez de 3, y aun así cosechó 3");
+  assert.equal(j2.oro, 5 + 6);
+  assert.ok(eventos.some((e) => e.tipo === "asalto_exitoso" && e.robo === 6 && e.ambicioso === true));
+});
+
+test("ambición del trono: no aplica si el atacante todavía no llegó a etapa 2", () => {
+  const [j1, j2] = tresJugadores();
+  j1.castillo = 2; // la víctima tiene la corona, pero el ATACANTE no
+  const { eventos } = resolverRonda([j1, j2], { 1: { tipo: "cosechar" }, 2: { tipo: "asaltar", objetivoId: 1, antorcha: false } });
+  assert.ok(eventos.some((e) => e.tipo === "asalto_exitoso" && e.robo === 3 && e.ambicioso === false));
+});
+
 test("fin de partida: empate exacto en castillo completo -> muerte súbita, luego se desempata", () => {
   const [j1, j2, j3] = tresJugadores();
   j1.castillo = 3;

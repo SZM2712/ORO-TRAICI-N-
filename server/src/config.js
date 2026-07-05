@@ -22,6 +22,12 @@ export const ROBO_CON_MURALLA = 2;
 export const TRIBUTO_BLOQUEO = 2;
 export const BONUS_DEFENDER = 1;
 
+// Ambición del Trono: quien tenga el castillo en esta etapa o superior asalta
+// con el doble de robo — un beneficio real para el líder, a propósito, para
+// que el resto tenga una razón concreta para unirse contra él.
+export const ETAPA_AMBICION = 2;
+export const MULTIPLICADOR_AMBICION = 2;
+
 export const LIMITE_RONDAS = 20;
 export const RONDAS_PROFECIA = [1, 5, 10];
 export const TIEMPO_VOTACION_MS = 30_000;

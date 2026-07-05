@@ -12,6 +12,7 @@ import ModalVotacionPergaminos from "../components/ModalVotacionPergaminos.jsx";
 import ModalPropuestaAlianza from "../components/ModalPropuestaAlianza.jsx";
 import BotonMute from "../components/BotonMute.jsx";
 import { useSonidos } from "../hooks/useSonidos.js";
+import { ETAPA_AMBICION } from "../utils/format.js";
 
 export default function JuegoScreen() {
   const {
@@ -134,7 +135,7 @@ export default function JuegoScreen() {
 
       <section>
         <p className="text-[10px] uppercase tracking-widest text-crema/40 font-mono mb-1">Tu aldea</p>
-        <div className="bg-panel/60 rounded-xl p-3 border border-white/10">
+        <div className={`bg-panel/60 rounded-xl p-3 border ${miJugador.castillo >= ETAPA_AMBICION ? "border-oro/60" : "border-white/10"}`}>
           <Aldea
             granjas={miJugador.granjas}
             quemadas={miJugador.granjasQuemadas}
@@ -148,6 +149,9 @@ export default function JuegoScreen() {
             {miJugador.muralla && <span>🧱</span>}
             {miJugador.torreOraculo && <span>🔮</span>}
           </div>
+          {miJugador.castillo >= ETAPA_AMBICION && (
+            <p className="text-[10px] text-oro text-center mt-1">👑 Asaltás con el doble de botín — pero todos van a ir por vos.</p>
+          )}
         </div>
       </section>
 

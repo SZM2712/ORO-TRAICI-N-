@@ -1,4 +1,5 @@
 import React from "react";
+import { ETAPA_AMBICION } from "../utils/format.js";
 
 export default function BarraCastilloGlobal({ jugadores }) {
   return (
@@ -6,7 +7,10 @@ export default function BarraCastilloGlobal({ jugadores }) {
       <div className="text-[10px] uppercase tracking-widest text-crema/50 font-mono">Carrera al castillo</div>
       {jugadores.map((j) => (
         <div key={j.id} className="flex items-center gap-2">
-          <span className="text-sm w-6">{j.icono}</span>
+          <span className="text-sm w-6">
+            {j.icono}
+            {j.castillo >= ETAPA_AMBICION && "👑"}
+          </span>
           <div className="flex-1 h-2.5 rounded-full bg-black/40 overflow-hidden">
             <div
               className="h-full rounded-full bg-gradient-to-r from-oro to-sangre transition-all duration-700 ease-out"

@@ -21,7 +21,7 @@ export function narrarEventos(eventos, jugadoresPorId) {
         frases.push(
           `${tag(j(ev.atacanteId))} asaltó a ${tag(j(ev.objetivoId))} y robó ${ev.robo} de oro${
             ev.muralla ? " (la muralla amortiguó el golpe)" : ""
-          }.`
+          }${ev.ambicioso ? " 👑 (¡su ambición por el trono duplicó el botín!)" : ""}.`
         );
         break;
       case "incendio":
