@@ -31,6 +31,17 @@ export function decidirAccionBot(jugador, jugadores, aliadosIds = new Set(), rng
     return { tipo: "construir", item: "oraculo" };
   }
 
+  // De vez en cuando ayuda económicamente a un aliado, priorizando al que
+  // tenga menos oro que él.
+  if (aliadosIds.size > 0 && jugador.oro > 4 && rng() < 0.12) {
+    const aliados = jugadores.filter((j) => aliadosIds.has(j.id));
+    const necesitados = aliados.filter((a) => a.oro < jugador.oro);
+    const pool = necesitados.length > 0 ? necesitados : aliados;
+    const receptor = pool[Math.floor(rng() * pool.length)];
+    const cantidad = Math.min(3, jugador.oro - 1);
+    if (cantidad > 0) return { tipo: "enviar_oro", objetivoId: receptor.id, cantidad };
+  }
+
   const objetivosConOro = rivales.filter((r) => r.oro > 0);
   const objetivosSinAlianza = objetivosConOro.filter((r) => !aliadosIds.has(r.id));
   const hayAlternativaLeal = objetivosSinAlianza.length > 0;

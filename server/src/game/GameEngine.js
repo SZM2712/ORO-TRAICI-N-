@@ -13,6 +13,8 @@ import {
   LIMITE_RONDAS,
   ETAPA_AMBICION,
   MULTIPLICADOR_AMBICION,
+  MULTIPLICADOR_PINZA,
+  BONUS_DEFENSA_CONJUNTA,
 } from "../config.js";
 import { MAZO_PROFECIAS } from "./prophecies.js";
 import { puntaje } from "./state.js";
@@ -228,11 +230,14 @@ export function resolverTraiciones(alianzas, acciones) {
 
 // ---------------------------------------------------------------------------
 // Resolución de ronda: orden determinista fijo
-//   1) fijar defensores  2) asaltos/incendios  3) construcciones
-//   4) cosechas          5) +1 al defensor
+//   1) fijar defensores  2) asaltos/incendios  2.5) envíos de oro entre
+//   aliados  3) construcciones  4) cosechas  5) +1 al defensor
 // `profeciaActiva` es null o { id, leaderId } (leaderId solo si id === 'traicion_corte').
+// `alianzas` son las alianzas vigentes AL CERRAR la ronda (ya sin las que se
+// rompieron por traición esta misma ronda, ver resolverTraiciones): habilitan
+// el bono de asalto en pinza, el envío de oro y el bono de defensa conjunta.
 // ---------------------------------------------------------------------------
-export function resolverRonda(jugadores, acciones, profeciaActiva = null) {
+export function resolverRonda(jugadores, acciones, profeciaActiva = null, alianzas = []) {
   const eventos = [];
   const porId = new Map(jugadores.map((j) => [j.id, j]));
   const obtenerAccion = (id) => acciones[id] || { tipo: "cosechar" };
@@ -252,6 +257,15 @@ export function resolverRonda(jugadores, acciones, profeciaActiva = null) {
   const bloqueaEfectivamente = (id) => defensores.has(id) && id !== liderSinBloqueo;
 
   // 2) Asaltos e incendios (orden por id de atacante)
+  const asaltantesPorObjetivo = new Map();
+  for (const j of orden) {
+    const acc = obtenerAccion(j.id);
+    if (acc.tipo !== "asaltar") continue;
+    const lista = asaltantesPorObjetivo.get(acc.objetivoId) || [];
+    lista.push(j.id);
+    asaltantesPorObjetivo.set(acc.objetivoId, lista);
+  }
+
   for (const atacante of orden) {
     const acc = obtenerAccion(atacante.id);
     if (acc.tipo !== "asaltar") continue;
@@ -274,8 +288,13 @@ export function resolverRonda(jugadores, acciones, profeciaActiva = null) {
       }
     } else {
       const ambicioso = atacante.castillo >= ETAPA_AMBICION;
+      const companeros = (asaltantesPorObjetivo.get(objetivo.id) || []).filter((id) => id !== atacante.id);
+      const enPinza = companeros.some((id) => existeAlianza(alianzas, atacante.id, id));
       const roboBase = objetivo.muralla ? ROBO_CON_MURALLA : ROBO_NORMAL;
-      const robo = Math.min(ambicioso ? roboBase * MULTIPLICADOR_AMBICION : roboBase, objetivo.oro);
+      let robo = roboBase;
+      if (ambicioso) robo *= MULTIPLICADOR_AMBICION;
+      if (enPinza) robo = Math.floor(robo * MULTIPLICADOR_PINZA);
+      robo = Math.min(robo, objetivo.oro);
       atacante.oro += robo;
       objetivo.oro -= robo;
       eventos.push({
@@ -285,6 +304,7 @@ export function resolverRonda(jugadores, acciones, profeciaActiva = null) {
         robo,
         muralla: objetivo.muralla,
         ambicioso,
+        enPinza,
       });
       if (acc.antorcha) {
         atacante.antorchaUsada = true;
@@ -297,6 +317,26 @@ export function resolverRonda(jugadores, acciones, profeciaActiva = null) {
         }
       }
     }
+  }
+
+  // 2.5) Envíos de oro entre aliados (después de robos, con el oro real
+  // disponible; antes de construcciones, para que el receptor pueda usarlo)
+  for (const j of orden) {
+    const acc = obtenerAccion(j.id);
+    if (acc.tipo !== "enviar_oro") continue;
+    const receptor = porId.get(acc.objetivoId);
+    if (!receptor || receptor.id === j.id || !existeAlianza(alianzas, j.id, receptor.id)) {
+      eventos.push({ tipo: "envio_oro_fallido", jugadorId: j.id, objetivoId: acc.objetivoId });
+      continue;
+    }
+    const cantidad = Math.max(0, Math.min(Math.floor(acc.cantidad), j.oro));
+    if (cantidad <= 0) {
+      eventos.push({ tipo: "envio_oro_fallido", jugadorId: j.id, objetivoId: receptor.id });
+      continue;
+    }
+    j.oro -= cantidad;
+    receptor.oro += cantidad;
+    eventos.push({ tipo: "envio_oro", jugadorId: j.id, objetivoId: receptor.id, cantidad });
   }
 
   // 3) Construcciones (validar oro DESPUÉS de robos)
@@ -317,11 +357,13 @@ export function resolverRonda(jugadores, acciones, profeciaActiva = null) {
     eventos.push({ tipo: "cosecha", jugadorId: j.id, cantidad });
   }
 
-  // 5) +1 al defensor
+  // 5) +1 al defensor (+ bono si un aliado también defendió esta ronda)
   for (const id of defensores) {
     const j = porId.get(id);
-    j.oro += BONUS_DEFENDER;
-    eventos.push({ tipo: "defensa", jugadorId: id, liderSinBloqueo: id === liderSinBloqueo });
+    const conjunta = [...defensores].some((otroId) => otroId !== id && existeAlianza(alianzas, id, otroId));
+    const bono = BONUS_DEFENDER + (conjunta ? BONUS_DEFENSA_CONJUNTA : 0);
+    j.oro += bono;
+    eventos.push({ tipo: "defensa", jugadorId: id, liderSinBloqueo: id === liderSinBloqueo, conjunta, bono });
   }
 
   return { eventos };

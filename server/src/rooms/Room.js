@@ -454,7 +454,9 @@ export class Room {
   validarAccion(jugador, accion) {
     if (!accion || typeof accion !== "object") throw new Error("Acción inválida.");
     const { tipo } = accion;
-    if (!["cosechar", "construir", "asaltar", "defender"].includes(tipo)) throw new Error("Tipo de acción inválido.");
+    if (!["cosechar", "construir", "asaltar", "defender", "enviar_oro"].includes(tipo)) {
+      throw new Error("Tipo de acción inválido.");
+    }
     if (tipo === "construir") {
       if (!["granja", "muralla", "oraculo", "castillo"].includes(accion.item)) throw new Error("Construcción inválida.");
       if (costoDeItem(jugador, accion.item) == null) throw new Error("Esa construcción ya no está disponible.");
@@ -466,6 +468,14 @@ export class Room {
       const antorcha = Boolean(accion.antorcha);
       if (antorcha && jugador.antorchaUsada) throw new Error("Ya usaste tu antorcha esta partida.");
       return { tipo, objetivoId: objetivo.id, antorcha };
+    }
+    if (tipo === "enviar_oro") {
+      const objetivo = this.jugadorPorId(accion.objetivoId);
+      if (!objetivo || objetivo.id === jugador.id) throw new Error("Destino de envío inválido.");
+      if (!this.sonAliados(jugador.id, objetivo.id)) throw new Error("Solo podés enviarle oro a un aliado.");
+      const cantidad = Math.floor(Number(accion.cantidad));
+      if (!Number.isFinite(cantidad) || cantidad <= 0) throw new Error("Cantidad de oro inválida.");
+      return { tipo, objetivoId: objetivo.id, cantidad };
     }
     return { tipo };
   }
@@ -508,7 +518,8 @@ export class Room {
     const { eventos: eventosCombate } = resolverRonda(
       this.estado.jugadores,
       this.estado.accionesPendientes,
-      this.estado.profeciaRondaActual
+      this.estado.profeciaRondaActual,
+      this.estado.alianzas
     );
     const eventos = [...traiciones, ...eventosCombate];
 

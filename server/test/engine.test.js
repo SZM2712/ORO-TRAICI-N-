@@ -213,3 +213,88 @@ test("resolverTraiciones: sin asaltos entre aliados, todas las alianzas siguen i
   assert.deepEqual(traiciones, []);
   assert.deepEqual(alianzasRestantes, [[1, 2]]);
 });
+
+test("asalto en pinza: dos aliados asaltando al mismo objetivo se llevan un bono cada uno", () => {
+  const [j1, j2, j3] = tresJugadores();
+  const alianzas = [[1, 2]];
+  const acciones = {
+    1: { tipo: "asaltar", objetivoId: 3, antorcha: false },
+    2: { tipo: "asaltar", objetivoId: 3, antorcha: false },
+    3: { tipo: "cosechar" },
+  };
+  const { eventos } = resolverRonda([j1, j2, j3], acciones, null, alianzas);
+
+  const asaltoJ1 = eventos.find((e) => e.tipo === "asalto_exitoso" && e.atacanteId === 1);
+  const asaltoJ2 = eventos.find((e) => e.tipo === "asalto_exitoso" && e.atacanteId === 2);
+  assert.equal(asaltoJ1.enPinza, true);
+  assert.equal(asaltoJ1.robo, 4, "3 de robo normal * 1.5 de bono en pinza, redondeado abajo");
+  assert.equal(asaltoJ2.enPinza, true);
+  assert.equal(asaltoJ2.robo, 1, "solo queda 1 de oro en la víctima tras el primer asalto");
+  assert.equal(j3.oro, 5 - 4 - 1 + 3, "perdió 5 en total y cosechó 3");
+});
+
+test("asalto en pinza: no aplica si los dos atacantes no son aliados entre sí", () => {
+  const [j1, j2, j3] = tresJugadores();
+  const acciones = {
+    1: { tipo: "asaltar", objetivoId: 3, antorcha: false },
+    2: { tipo: "asaltar", objetivoId: 3, antorcha: false },
+    3: { tipo: "cosechar" },
+  };
+  const { eventos } = resolverRonda([j1, j2, j3], acciones, null, []);
+  assert.ok(eventos.every((e) => e.tipo !== "asalto_exitoso" || e.enPinza === false));
+});
+
+test("envío de oro entre aliados: se descuenta de uno y se suma al otro", () => {
+  const [j1, j2, j3] = tresJugadores();
+  const alianzas = [[1, 2]];
+  const acciones = {
+    1: { tipo: "enviar_oro", objetivoId: 2, cantidad: 3 },
+    2: { tipo: "cosechar" },
+    3: { tipo: "cosechar" },
+  };
+  const { eventos } = resolverRonda([j1, j2, j3], acciones, null, alianzas);
+  assert.equal(j1.oro, 5 - 3, "envió 3 y no cosechó (eligió enviar oro en vez de cosechar)");
+  assert.equal(j2.oro, 5 + 3 + 3, "recibió 3 y además cosechó 3");
+  assert.ok(eventos.some((e) => e.tipo === "envio_oro" && e.jugadorId === 1 && e.objetivoId === 2 && e.cantidad === 3));
+});
+
+test("envío de oro falla si ya no son aliados", () => {
+  const [j1, j2, j3] = tresJugadores();
+  const acciones = { 1: { tipo: "enviar_oro", objetivoId: 3, cantidad: 3 }, 2: { tipo: "cosechar" }, 3: { tipo: "cosechar" } };
+  const { eventos } = resolverRonda([j1, j2, j3], acciones, null, []);
+  assert.equal(j1.oro, 5, "el envío no se concreta, no pierde el oro");
+  assert.ok(eventos.some((e) => e.tipo === "envio_oro_fallido" && e.jugadorId === 1));
+});
+
+test("envío de oro se limita al oro disponible tras los robos de la misma ronda", () => {
+  const [j1, j2, j3] = tresJugadores();
+  const alianzas = [[1, 2]];
+  const acciones = {
+    1: { tipo: "enviar_oro", objetivoId: 2, cantidad: 10 },
+    2: { tipo: "cosechar" },
+    3: { tipo: "asaltar", objetivoId: 1, antorcha: false },
+  };
+  const { eventos } = resolverRonda([j1, j2, j3], acciones, null, alianzas);
+  assert.equal(j1.oro, 0, "le robaron 3 (quedó con 2) y mandó los 2 que le quedaban");
+  assert.equal(j2.oro, 5 + 2 + 3, "recibió 2 (no los 10 pedidos) y cosechó 3");
+  assert.ok(eventos.some((e) => e.tipo === "envio_oro" && e.cantidad === 2));
+});
+
+test("defensa conjunta: dos aliados que defienden la misma ronda ganan un bono extra", () => {
+  const [j1, j2, j3] = tresJugadores();
+  const alianzas = [[1, 2]];
+  const acciones = { 1: { tipo: "defender" }, 2: { tipo: "defender" }, 3: { tipo: "cosechar" } };
+  const { eventos } = resolverRonda([j1, j2, j3], acciones, null, alianzas);
+  assert.equal(j1.oro, 5 + 2, "bono normal (1) + bono de defensa conjunta (1)");
+  assert.equal(j2.oro, 5 + 2);
+  assert.ok(eventos.some((e) => e.tipo === "defensa" && e.jugadorId === 1 && e.conjunta === true && e.bono === 2));
+});
+
+test("defensa conjunta: no aplica si el aliado no también defendió", () => {
+  const [j1, j2, j3] = tresJugadores();
+  const alianzas = [[1, 2]];
+  const acciones = { 1: { tipo: "defender" }, 2: { tipo: "cosechar" }, 3: { tipo: "cosechar" } };
+  const { eventos } = resolverRonda([j1, j2, j3], acciones, null, alianzas);
+  assert.equal(j1.oro, 5 + 1, "solo el bono normal de defensor");
+  assert.ok(eventos.some((e) => e.tipo === "defensa" && e.jugadorId === 1 && e.conjunta === false && e.bono === 1));
+});

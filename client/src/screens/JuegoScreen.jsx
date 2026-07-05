@@ -77,8 +77,12 @@ export default function JuegoScreen() {
   const apuntandoAAliado = borrador.tipo === "asaltar" && borrador.objetivoId && misAliadosIds.has(borrador.objetivoId);
 
   const alTocarRival = (jugador) => {
-    if (borrador.tipo !== "asaltar" || miJugador.selloJugada) return;
-    setBorrador((b) => ({ ...b, objetivoId: jugador.id }));
+    if (miJugador.selloJugada) return;
+    if (borrador.tipo === "asaltar") {
+      setBorrador((b) => ({ ...b, objetivoId: jugador.id }));
+    } else if (borrador.tipo === "enviar_oro" && misAliadosIds.has(jugador.id)) {
+      setBorrador((b) => ({ ...b, objetivoId: jugador.id }));
+    }
   };
 
   const alProponerAlianza = async (objetivoId) => {
@@ -167,7 +171,10 @@ export default function JuegoScreen() {
                   jugador={j}
                   seleccionado={borrador.objetivoId === j.id}
                   onClick={() => alTocarRival(j)}
-                  deshabilitado={borrador.tipo !== "asaltar" || miJugador.selloJugada}
+                  deshabilitado={
+                    miJugador.selloJugada ||
+                    (borrador.tipo === "asaltar" ? false : borrador.tipo === "enviar_oro" ? !esAliado : true)
+                  }
                   esAliado={esAliado}
                 />
                 {snapshot.fase === "accion" && !esAliado && !miJugador.selloJugada && (
@@ -199,6 +206,7 @@ export default function JuegoScreen() {
         onSellar={onSellar}
         sellado={Boolean(miJugador.selloJugada)}
         enviando={enviando}
+        hayAliados={misAliadosIds.size > 0}
       />
 
       <CronicaReino historial={snapshot.historial} />

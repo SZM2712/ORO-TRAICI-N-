@@ -21,7 +21,9 @@ export function narrarEventos(eventos, jugadoresPorId) {
         frases.push(
           `${tag(j(ev.atacanteId))} asaltó a ${tag(j(ev.objetivoId))} y robó ${ev.robo} de oro${
             ev.muralla ? " (la muralla amortiguó el golpe)" : ""
-          }${ev.ambicioso ? " 👑 (¡su ambición por el trono duplicó el botín!)" : ""}.`
+          }${ev.ambicioso ? " 👑 (¡su ambición por el trono duplicó el botín!)" : ""}${
+            ev.enPinza ? " 🤝⚔️ (asalto en pinza junto a su aliado: botín extra)" : ""
+          }.`
         );
         break;
       case "incendio":
@@ -63,9 +65,9 @@ export function narrarEventos(eventos, jugadoresPorId) {
         break;
       case "defensa":
         frases.push(
-          `🛡️ ${tag(j(ev.jugadorId))} se atrincheró y ganó 1 de oro${
-            ev.liderSinBloqueo ? " (¡pero la Traición en la Corte le impidió bloquear!)" : ""
-          }.`
+          `🛡️ ${tag(j(ev.jugadorId))} se atrincheró y ganó ${ev.bono} de oro${
+            ev.conjunta ? " 🤝 (defensa conjunta con su aliado)" : ""
+          }${ev.liderSinBloqueo ? " (¡pero la Traición en la Corte le impidió bloquear!)" : ""}.`
         );
         break;
       case "profecia_piedad_rey":
@@ -88,6 +90,12 @@ export function narrarEventos(eventos, jugadoresPorId) {
         break;
       case "profecia_traicion":
         frases.push(`🐍 La Traición en la Corte marcó a ${tag(j(ev.jugadorId))} como líder: no podrá bloquear esta ronda.`);
+        break;
+      case "envio_oro":
+        frases.push(`🎁 ${tag(j(ev.jugadorId))} le envió ${ev.cantidad} de oro a su aliado ${tag(j(ev.objetivoId))}.`);
+        break;
+      case "envio_oro_fallido":
+        frases.push(`💔 ${tag(j(ev.jugadorId))} quiso enviarle oro a un aliado, pero la alianza ya no existe.`);
         break;
       case "traicion_aliado":
         frases.push(`🗡️💔 ¡TRAICIÓN! ${tag(j(ev.atacanteId))} rompió su alianza con ${tag(j(ev.objetivoId))} y lo asaltó.`);

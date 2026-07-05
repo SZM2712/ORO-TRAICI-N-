@@ -3,7 +3,7 @@ import { costoConDescuento, NOMBRES_ITEM, MAX_GRANJAS } from "../utils/format.js
 
 const ITEMS_CONSTRUCCION = ["granja", "muralla", "oraculo", "castillo"];
 
-export default function PanelAcciones({ miJugador, profeciaActiva, borrador, setBorrador, onSellar, sellado, enviando }) {
+export default function PanelAcciones({ miJugador, profeciaActiva, borrador, setBorrador, onSellar, sellado, enviando, hayAliados }) {
   if (!miJugador) return null;
 
   const elegirTipo = (tipo) => {
@@ -21,35 +21,45 @@ export default function PanelAcciones({ miJugador, profeciaActiva, borrador, set
     setBorrador((b) => ({ ...b, antorcha: !b.antorcha }));
   };
 
+  const cambiarCantidad = (valor) => {
+    setBorrador((b) => ({ ...b, cantidad: valor }));
+  };
+
   const listo =
     borrador.tipo === "cosechar" ||
     borrador.tipo === "defender" ||
     (borrador.tipo === "construir" && borrador.item) ||
-    (borrador.tipo === "asaltar" && borrador.objetivoId);
+    (borrador.tipo === "asaltar" && borrador.objetivoId) ||
+    (borrador.tipo === "enviar_oro" && borrador.objetivoId && Number(borrador.cantidad) > 0);
 
   const botones = [
     { tipo: "cosechar", etiqueta: "Cosechar", icono: "🌾" },
     { tipo: "construir", etiqueta: "Construir", icono: "🔨" },
     { tipo: "asaltar", etiqueta: "Asaltar", icono: "⚔️" },
     { tipo: "defender", etiqueta: "Defender", icono: "🛡️" },
+    { tipo: "enviar_oro", etiqueta: "Enviar oro", icono: "🎁", requiereAliado: true },
   ];
 
   return (
     <div className="bg-panel/80 rounded-xl p-3 border border-white/10 sombra-panel">
-      <div className="grid grid-cols-4 gap-2">
-        {botones.map((b) => (
-          <button
-            key={b.tipo}
-            onClick={() => elegirTipo(b.tipo)}
-            disabled={sellado}
-            className={`flex flex-col items-center justify-center gap-1 rounded-lg py-3 text-xs font-texto border-2 transition-all ${
-              borrador.tipo === b.tipo ? "border-oro bg-oro/15 text-oro" : "border-white/10 text-crema/80"
-            } ${sellado ? "opacity-50" : "active:scale-95"}`}
-          >
-            <span className="text-xl">{b.icono}</span>
-            {b.etiqueta}
-          </button>
-        ))}
+      <div className="grid grid-cols-5 gap-1.5">
+        {botones.map((b) => {
+          const deshabilitado = sellado || (b.requiereAliado && !hayAliados);
+          return (
+            <button
+              key={b.tipo}
+              onClick={() => elegirTipo(b.tipo)}
+              disabled={deshabilitado}
+              title={b.requiereAliado && !hayAliados ? "Necesitás al menos un aliado" : undefined}
+              className={`flex flex-col items-center justify-center gap-1 rounded-lg py-3 text-[11px] font-texto border-2 transition-all ${
+                borrador.tipo === b.tipo ? "border-oro bg-oro/15 text-oro" : "border-white/10 text-crema/80"
+              } ${deshabilitado ? "opacity-40" : "active:scale-95"}`}
+            >
+              <span className="text-lg">{b.icono}</span>
+              {b.etiqueta}
+            </button>
+          );
+        })}
       </div>
 
       {borrador.tipo === "construir" && (
@@ -89,6 +99,26 @@ export default function PanelAcciones({ miJugador, profeciaActiva, borrador, set
               onChange={alternarAntorcha}
             />
             <span>🔥 Usar la antorcha (una sola vez por partida){miJugador.antorchaUsada ? " — ya la usaste" : ""}</span>
+          </label>
+        </div>
+      )}
+
+      {borrador.tipo === "enviar_oro" && (
+        <div className="mt-3 text-xs text-crema/80 space-y-2">
+          <p>👆 Tocá una aldea aliada para elegir a quién ayudar.</p>
+          {borrador.objetivoId && <p className="text-oro">Destino elegido: #{borrador.objetivoId}</p>}
+          <label className="flex items-center gap-2">
+            <span>💰 Cantidad:</span>
+            <input
+              type="number"
+              min="1"
+              max={miJugador.oro}
+              value={borrador.cantidad ?? ""}
+              onChange={(e) => cambiarCantidad(e.target.value)}
+              disabled={sellado}
+              className="w-20 rounded bg-panel border border-white/15 px-2 py-1 text-crema"
+            />
+            <span className="text-crema/50">(tenés {miJugador.oro})</span>
           </label>
         </div>
       )}

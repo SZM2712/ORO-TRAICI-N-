@@ -28,6 +28,15 @@ export const BONUS_DEFENDER = 1;
 export const ETAPA_AMBICION = 2;
 export const MULTIPLICADOR_AMBICION = 2;
 
+// Asalto en pinza: si dos aliados asaltan al mismo objetivo en la misma
+// ronda, ambos se llevan un botín extra — le da a las alianzas un propósito
+// ofensivo (coordinarse contra un tercero), no solo defensivo.
+export const MULTIPLICADOR_PINZA = 1.5;
+
+// Defensa conjunta: si dos aliados defienden en la misma ronda, ambos ganan
+// un poco más de oro que defendiendo solos.
+export const BONUS_DEFENSA_CONJUNTA = 1;
+
 export const LIMITE_RONDAS = 20;
 export const RONDAS_PROFECIA = [1, 5, 10];
 export const TIEMPO_VOTACION_MS = 30_000;
