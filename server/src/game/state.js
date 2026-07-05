@@ -35,6 +35,8 @@ export function crearEstadoSala(code) {
     profeciaMazoUsado: [], // ids de profecías ya usadas
     profeciaActual: null, // { opciones: [{clave,id}], votos:{}, deadline, ganador, leaderId }
     historial: [], // crónica del reino (texto)
+    alianzas: [], // [idA, idB][] pares canónicos (idA < idB), públicos para toda la sala
+    propuestasAlianza: [], // { deId, aId }[] pendientes de respuesta, privadas
     sueteMuerte: false,
     terminada: false,
     ganadorId: null,

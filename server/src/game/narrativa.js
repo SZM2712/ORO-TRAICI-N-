@@ -89,6 +89,9 @@ export function narrarEventos(eventos, jugadoresPorId) {
       case "profecia_traicion":
         frases.push(`🐍 La Traición en la Corte marcó a ${tag(j(ev.jugadorId))} como líder: no podrá bloquear esta ronda.`);
         break;
+      case "traicion_aliado":
+        frases.push(`🗡️💔 ¡TRAICIÓN! ${tag(j(ev.atacanteId))} rompió su alianza con ${tag(j(ev.objetivoId))} y lo asaltó.`);
+        break;
       case "alerta_panico":
         frases.push(`🚨 ¡El castillo de ${tag(j(ev.jugadorId))} llegó a la etapa 2!`);
         break;

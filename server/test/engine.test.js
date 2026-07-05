@@ -1,7 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { crearJugador } from "../src/game/state.js";
-import { resolverRonda, revisarFinPartida, determinarLider } from "../src/game/GameEngine.js";
+import {
+  resolverRonda,
+  revisarFinPartida,
+  determinarLider,
+  existeAlianza,
+  agregarAlianza,
+  resolverTraiciones,
+} from "../src/game/GameEngine.js";
 
 function tresJugadores() {
   return [
@@ -158,4 +165,34 @@ test("determinarLider: castillo más avanzado, desempate por oro", () => {
   j3.oro = 5;
   const lider = determinarLider([j1, j2, j3]);
   assert.equal(lider.id, 2);
+});
+
+test("agregarAlianza: no duplica un par ya existente, en cualquier orden", () => {
+  let alianzas = agregarAlianza([], 2, 1);
+  assert.deepEqual(alianzas, [[1, 2]]);
+  alianzas = agregarAlianza(alianzas, 1, 2);
+  assert.deepEqual(alianzas, [[1, 2]], "no debe duplicar el mismo par");
+  assert.ok(existeAlianza(alianzas, 1, 2));
+  assert.ok(existeAlianza(alianzas, 2, 1));
+  assert.ok(!existeAlianza(alianzas, 1, 3));
+});
+
+test("resolverTraiciones: asaltar a un aliado rompe la alianza y se marca como traición", () => {
+  const alianzas = [[1, 2], [1, 3]];
+  const acciones = {
+    1: { tipo: "asaltar", objetivoId: 2 },
+    2: { tipo: "cosechar" },
+    3: { tipo: "defender" },
+  };
+  const { traiciones, alianzasRestantes } = resolverTraiciones(alianzas, acciones);
+  assert.deepEqual(traiciones, [{ tipo: "traicion_aliado", atacanteId: 1, objetivoId: 2 }]);
+  assert.deepEqual(alianzasRestantes, [[1, 3]], "la alianza 1-2 se rompe, la 1-3 sigue en pie");
+});
+
+test("resolverTraiciones: sin asaltos entre aliados, todas las alianzas siguen intactas", () => {
+  const alianzas = [[1, 2]];
+  const acciones = { 1: { tipo: "cosechar" }, 2: { tipo: "asaltar", objetivoId: 3 }, 3: { tipo: "defender" } };
+  const { traiciones, alianzasRestantes } = resolverTraiciones(alianzas, acciones);
+  assert.deepEqual(traiciones, []);
+  assert.deepEqual(alianzasRestantes, [[1, 2]]);
 });

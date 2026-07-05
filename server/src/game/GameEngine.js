@@ -192,6 +192,39 @@ export function aplicarEfectoProfecia(jugadores, profeciaId, rng = Math.random) 
 }
 
 // ---------------------------------------------------------------------------
+// Alianzas: pares [idA, idB] canónicos (idA < idB) guardados en el estado de
+// la sala. Formarlas es instantáneo (fuera del ciclo de rondas); romperlas
+// por traición se detecta acá, de forma pura, a partir de las acciones ya
+// selladas de la ronda.
+// ---------------------------------------------------------------------------
+export function existeAlianza(alianzas, a, b) {
+  return alianzas.some(([x, y]) => (x === a && y === b) || (x === b && y === a));
+}
+
+export function agregarAlianza(alianzas, a, b) {
+  if (existeAlianza(alianzas, a, b)) return alianzas;
+  return [...alianzas, a < b ? [a, b] : [b, a]];
+}
+
+// Un aliado que asalta a su aliado rompe la alianza en el acto: se detecta
+// antes de resolver la ronda para poder narrar la traición por separado del
+// resultado del asalto en sí.
+export function resolverTraiciones(alianzas, acciones) {
+  const traiciones = [];
+  const alianzasRestantes = [];
+  for (const [a, b] of alianzas) {
+    const accionA = acciones[a];
+    const accionB = acciones[b];
+    const aTraiciona = accionA?.tipo === "asaltar" && accionA.objetivoId === b;
+    const bTraiciona = accionB?.tipo === "asaltar" && accionB.objetivoId === a;
+    if (aTraiciona) traiciones.push({ tipo: "traicion_aliado", atacanteId: a, objetivoId: b });
+    if (bTraiciona) traiciones.push({ tipo: "traicion_aliado", atacanteId: b, objetivoId: a });
+    if (!aTraiciona && !bTraiciona) alianzasRestantes.push([a, b]);
+  }
+  return { traiciones, alianzasRestantes };
+}
+
+// ---------------------------------------------------------------------------
 // Resolución de ronda: orden determinista fijo
 //   1) fijar defensores  2) asaltos/incendios  3) construcciones
 //   4) cosechas          5) +1 al defensor

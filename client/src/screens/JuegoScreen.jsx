@@ -9,6 +9,7 @@ import CronicaReino from "../components/CronicaReino.jsx";
 import AlertaPanico from "../components/AlertaPanico.jsx";
 import ModalRevelacion from "../components/ModalRevelacion.jsx";
 import ModalVotacionPergaminos from "../components/ModalVotacionPergaminos.jsx";
+import ModalPropuestaAlianza from "../components/ModalPropuestaAlianza.jsx";
 import BotonMute from "../components/BotonMute.jsx";
 import { useSonidos } from "../hooks/useSonidos.js";
 
@@ -21,9 +22,12 @@ export default function JuegoScreen() {
     votacionRevelada,
     rondaRevelada,
     finPartida,
+    propuestaAlianzaRecibida,
     jugarAccion,
     votarPergamino,
     forzarPendientes,
+    proponerAlianza,
+    responderAlianza,
     esHost,
     limpiarRondaRevelada,
     limpiarVotacionRevelada,
@@ -34,10 +38,15 @@ export default function JuegoScreen() {
   const [borrador, setBorrador] = useState({ tipo: null });
   const [enviando, setEnviando] = useState(false);
   const [alertaPanico, setAlertaPanico] = useState(null);
+  const [propuestasEnviadas, setPropuestasEnviadas] = useState(new Set());
 
   useEffect(() => {
     setBorrador({ tipo: null });
   }, [snapshot.ronda, snapshot.fase]);
+
+  useEffect(() => {
+    setPropuestasEnviadas(new Set());
+  }, [snapshot.ronda]);
 
   useEffect(() => {
     if (snapshot.fase !== "profecia") limpiarVotacionRevelada();
@@ -59,10 +68,29 @@ export default function JuegoScreen() {
   if (!miJugador) return <div className="flex-1 flex items-center justify-center text-crema/50">Cargando aldea…</div>;
 
   const rivales = snapshot.jugadores.filter((j) => j.id !== miJugador.id);
+  const misAliadosIds = new Set(
+    (snapshot.alianzas || [])
+      .filter(([a, b]) => a === miJugador.id || b === miJugador.id)
+      .map(([a, b]) => (a === miJugador.id ? b : a))
+  );
+  const apuntandoAAliado = borrador.tipo === "asaltar" && borrador.objetivoId && misAliadosIds.has(borrador.objetivoId);
 
   const alTocarRival = (jugador) => {
     if (borrador.tipo !== "asaltar" || miJugador.selloJugada) return;
     setBorrador((b) => ({ ...b, objetivoId: jugador.id }));
+  };
+
+  const alProponerAlianza = async (objetivoId) => {
+    setPropuestasEnviadas((prev) => new Set(prev).add(objetivoId));
+    const res = await proponerAlianza(objetivoId);
+    if (!res.ok) {
+      setError(res.error);
+      setPropuestasEnviadas((prev) => {
+        const copia = new Set(prev);
+        copia.delete(objetivoId);
+        return copia;
+      });
+    }
   };
 
   const onSellar = async () => {
@@ -126,19 +154,38 @@ export default function JuegoScreen() {
       <section>
         <p className="text-[10px] uppercase tracking-widest text-crema/40 font-mono mb-1">Aldeas rivales</p>
         <div className="grid grid-cols-2 gap-2">
-          {rivales.map((j) => (
-            <AldeaMiniatura
-              key={j.id}
-              jugador={j}
-              seleccionado={borrador.objetivoId === j.id}
-              onClick={() => alTocarRival(j)}
-              deshabilitado={borrador.tipo !== "asaltar" || miJugador.selloJugada}
-            />
-          ))}
+          {rivales.map((j) => {
+            const esAliado = misAliadosIds.has(j.id);
+            const propuestaEnviada = propuestasEnviadas.has(j.id);
+            return (
+              <div key={j.id} className="flex flex-col gap-1">
+                <AldeaMiniatura
+                  jugador={j}
+                  seleccionado={borrador.objetivoId === j.id}
+                  onClick={() => alTocarRival(j)}
+                  deshabilitado={borrador.tipo !== "asaltar" || miJugador.selloJugada}
+                  esAliado={esAliado}
+                />
+                {snapshot.fase === "accion" && !esAliado && !miJugador.selloJugada && (
+                  <button
+                    onClick={() => alProponerAlianza(j.id)}
+                    disabled={propuestaEnviada}
+                    className="text-[10px] rounded-lg py-1 border border-acero/50 text-acero disabled:opacity-40 disabled:text-crema/40 active:scale-95"
+                  >
+                    {propuestaEnviada ? "Propuesta enviada…" : "🤝 Proponer alianza"}
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       </section>
 
       <IndicadorSellado jugadores={snapshot.jugadores} />
+
+      {apuntandoAAliado && (
+        <p className="text-xs text-sangre text-center -mt-2">⚠️ Es tu aliado: asaltarlo rompe la alianza y queda marcado como traición.</p>
+      )}
 
       <PanelAcciones
         miJugador={miJugador}
@@ -167,6 +214,8 @@ export default function JuegoScreen() {
       {!mostrandoModalProfecia && !finPartida && (
         <ModalRevelacion rondaRevelada={rondaRevelada} onCerrar={limpiarRondaRevelada} />
       )}
+
+      <ModalPropuestaAlianza propuesta={propuestaAlianzaRecibida} onResponder={responderAlianza} />
     </div>
   );
 }

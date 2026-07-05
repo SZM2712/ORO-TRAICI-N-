@@ -13,6 +13,7 @@ export function GameProvider({ children }) {
   const [votacionRevelada, setVotacionRevelada] = useState(null);
   const [rondaRevelada, setRondaRevelada] = useState(null);
   const [finPartida, setFinPartida] = useState(null);
+  const [propuestaAlianzaRecibida, setPropuestaAlianzaRecibida] = useState(null); // { deId, deNombre, deIcono }
   const intentoReconexion = useRef(false);
 
   useEffect(() => {
@@ -61,6 +62,12 @@ export function GameProvider({ children }) {
     function alFinPartida(payload) {
       setFinPartida(payload);
     }
+    function alAlianzaPropuesta(payload) {
+      setPropuestaAlianzaRecibida(payload);
+    }
+    function alAlianzaRechazada(payload) {
+      setError(`${payload?.objetivoNombre || "Tu rival"} rechazó tu propuesta de alianza.`);
+    }
 
     socket.on("connect", alConectar);
     socket.on("disconnect", alDesconectar);
@@ -71,6 +78,8 @@ export function GameProvider({ children }) {
     socket.on("votacion_revelada", alVotacionRevelada);
     socket.on("ronda_revelada", alRondaRevelada);
     socket.on("fin_partida", alFinPartida);
+    socket.on("alianza_propuesta", alAlianzaPropuesta);
+    socket.on("alianza_rechazada", alAlianzaRechazada);
 
     return () => {
       socket.off("connect", alConectar);
@@ -82,6 +91,8 @@ export function GameProvider({ children }) {
       socket.off("votacion_revelada", alVotacionRevelada);
       socket.off("ronda_revelada", alRondaRevelada);
       socket.off("fin_partida", alFinPartida);
+      socket.off("alianza_propuesta", alAlianzaPropuesta);
+      socket.off("alianza_rechazada", alAlianzaRechazada);
     };
   }, []);
 
@@ -112,12 +123,18 @@ export function GameProvider({ children }) {
     setVotacionActual(null);
     setVotacionRevelada(null);
     setContenidoOraculo(null);
+    setPropuestaAlianzaRecibida(null);
   }, []);
 
   const empezarPartida = useCallback((opciones) => emitirConAck("empezar", opciones), []);
   const jugarAccion = useCallback((accion) => emitirConAck("jugar_accion", accion), []);
   const forzarPendientes = useCallback(() => emitirConAck("forzar_pendientes", {}), []);
   const votarPergamino = useCallback((opcion) => emitirConAck("votar_pergamino", { opcion }), []);
+  const proponerAlianza = useCallback((objetivoId) => emitirConAck("proponer_alianza", { objetivoId }), []);
+  const responderAlianza = useCallback((deId, aceptar) => {
+    setPropuestaAlianzaRecibida(null);
+    return emitirConAck("responder_alianza", { deId, aceptar });
+  }, []);
 
   const miJugador = snapshot?.jugadores?.find((j) => j.id === sesion?.playerId) || null;
   const esHost = Boolean(miJugador?.esHost);
@@ -133,6 +150,7 @@ export function GameProvider({ children }) {
     votacionRevelada,
     rondaRevelada,
     finPartida,
+    propuestaAlianzaRecibida,
     miJugador,
     esHost,
     crearSala,
@@ -142,6 +160,8 @@ export function GameProvider({ children }) {
     jugarAccion,
     forzarPendientes,
     votarPergamino,
+    proponerAlianza,
+    responderAlianza,
     limpiarRondaRevelada: () => setRondaRevelada(null),
     limpiarVotacionRevelada: () => setVotacionRevelada(null),
   };

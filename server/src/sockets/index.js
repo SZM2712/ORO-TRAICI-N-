@@ -1,6 +1,7 @@
 import { registrarHandlersSala } from "./handlers/room.js";
 import { registrarHandlersJuego } from "./handlers/game.js";
 import { registrarHandlersProfecia } from "./handlers/prophecy.js";
+import { registrarHandlersAlianza } from "./handlers/alliance.js";
 
 export function registrarSockets(io, roomManager) {
   io.on("connection", (socket) => {
@@ -11,5 +12,6 @@ export function registrarSockets(io, roomManager) {
     registrarHandlersSala(io, socket, roomManager);
     registrarHandlersJuego(io, socket, roomManager);
     registrarHandlersProfecia(io, socket, roomManager);
+    registrarHandlersAlianza(io, socket, roomManager);
   });
 }

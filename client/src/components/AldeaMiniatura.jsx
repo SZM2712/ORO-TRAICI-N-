@@ -1,14 +1,14 @@
 import React from "react";
 import Aldea from "./Aldea.jsx";
 
-export default function AldeaMiniatura({ jugador, seleccionado = false, onClick, deshabilitado = false }) {
+export default function AldeaMiniatura({ jugador, seleccionado = false, onClick, deshabilitado = false, esAliado = false }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={deshabilitado}
       className={`relative flex flex-col items-center gap-1 rounded-lg p-2 border-2 transition-all ${
-        seleccionado ? "border-sangre bg-sangre/10 scale-[1.03]" : "border-white/10 bg-panel/60"
+        seleccionado ? "border-sangre bg-sangre/10 scale-[1.03]" : esAliado ? "border-acero bg-acero/10" : "border-white/10 bg-panel/60"
       } ${deshabilitado ? "opacity-40" : "active:scale-95"}`}
       aria-pressed={seleccionado}
     >
@@ -30,6 +30,9 @@ export default function AldeaMiniatura({ jugador, seleccionado = false, onClick,
         <span className="absolute top-1 right-1 text-[9px] bg-black/60 px-1 rounded text-crema/70">desconectado</span>
       )}
       {jugador.selloJugada && <span className="absolute top-1 left-1 text-xs">🔒</span>}
+      {esAliado && (
+        <span className="absolute bottom-1 right-1 text-[9px] bg-acero text-[#0c1620] px-1 rounded font-semibold">🤝 aliado</span>
+      )}
     </button>
   );
 }

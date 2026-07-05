@@ -89,7 +89,8 @@ Cuando tengas los archivos, soltalos en `assets/svg/`, descomentá los imports e
 - Reconexión: el cliente guarda `{roomCode, playerToken}` en `localStorage` y se reincorpora con su estado intacto al reconectar.
 - Anti-bloqueo: tiempo por ronda configurable por el anfitrión (sin límite / 60 s / 30 s) y botón de "forzar pendientes".
 - Salas en memoria, se limpian solas tras 2 h de inactividad (no hay base de datos).
-- **Modo de prueba contra la máquina:** en la pantalla de inicio, el botón "🤖 Probar contra la máquina" crea una sala con 2 bots (`CPU ...`) además del jugador humano, para poder probar el juego sin necesitar más gente. Los bots juegan y votan solos con una IA simple (prioriza construir, a veces asalta o defiende) apenas empieza cada fase, con una demora aleatoria de 1–3 s para que se sienta natural.
+- **Alianzas:** durante la fase de acción, cualquier jugador puede tocar "🤝 Proponer alianza" en la tarjeta de un rival; si el otro acepta (confirmación en tiempo real, no espera al cierre de la ronda), quedan aliados — visible para toda la sala en la Crónica del Reino y con una insignia "🤝 aliado" en las tarjetas. Un jugador puede tener varias alianzas simultáneas. No hay bloqueo automático de asaltos: si alguno de los dos asalta al otro, la alianza se rompe en el acto y el asalto se resuelve igual, marcado como traición ("🗡️💔 ¡TRAICIÓN!") en la crónica.
+- **Modo de prueba contra la máquina:** en la pantalla de inicio se elige el total de jugadores (3 a 8, vos incluido) y el botón "🤖 Probar contra la máquina" crea la sala con esa cantidad de bots (`CPU ...`) para poder probar el juego sin necesitar más gente. Los bots juegan, votan y también proponen/responden alianzas solos con una IA simple (prioriza construir, prefiere no traicionar a un aliado salvo que no tenga otro objetivo), con una demora aleatoria de 1–3 s para que se sienta natural.
 
 ## Despliegue
 
@@ -132,10 +133,15 @@ Con eso, cualquiera puede entrar desde su celular a la URL de Netlify, crear o u
 | `jugar_accion` | cliente → servidor | Envía la jugada secreta de la ronda |
 | `forzar_pendientes` | cliente → servidor | El anfitrión fuerza a los jugadores pendientes (Cosechar / voto al azar) |
 | `votar_pergamino` | cliente → servidor | Voto secreto por A, B o C |
-| `snapshot_estado` | servidor → sala | Estado público completo (nunca incluye jugadas/votos secretos ajenos) |
+| `proponer_alianza` | cliente → servidor | Propone una alianza a otro jugador (solo en fase de acción) |
+| `responder_alianza` | cliente → servidor | Acepta o rechaza una propuesta de alianza recibida |
+| `snapshot_estado` | servidor → sala | Estado público completo (nunca incluye jugadas/votos secretos ajenos), incluye `alianzas` |
+| `alianza_propuesta` | servidor → jugador (privado) | Notifica al destinatario de una propuesta de alianza |
+| `alianza_rechazada` | servidor → jugador (privado) | Avisa al proponente que su propuesta fue rechazada |
 | `iniciar_votacion` | servidor → sala | Arranca la votación de profecías de la ronda |
 | `contenido_oraculo` | servidor → jugador (privado) | Contenido real de los 3 pergaminos, solo para dueños de la Torre del Oráculo |
 | `votacion_revelada` | servidor → sala | Pergamino ganador, conteo y quién votó qué |
+| `alianza_formada` | servidor → sala | Avisa que una alianza se formó (también se registra en la Crónica del Reino) |
 | `ronda_revelada` | servidor → sala | Eventos y narración dramática de la ronda resuelta |
 | `fin_partida` | servidor → sala | Ganador y podio final |
 | `error` | servidor → cliente | Mensaje de error puntual (acción inválida, sala llena, etc.) |

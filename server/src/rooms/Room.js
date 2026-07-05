@@ -14,10 +14,19 @@ import {
   revisarFinPartida,
   armarPodio,
   costoDeItem,
+  existeAlianza,
+  agregarAlianza,
+  resolverTraiciones,
 } from "../game/GameEngine.js";
 import { narrarEventos } from "../game/narrativa.js";
 import { generarPlayerToken } from "../utils/ids.js";
-import { NOMBRES_BOTS, decidirAccionBot, decidirVotoBot } from "../game/bot.js";
+import {
+  NOMBRES_BOTS,
+  decidirAccionBot,
+  decidirVotoBot,
+  decidirRespuestaAlianzaBot,
+  decidirPropuestaAlianzaBot,
+} from "../game/bot.js";
 
 const DEMORA_BOT_MIN_MS = 900;
 const DEMORA_BOT_MAX_MS = 3200;
@@ -140,6 +149,102 @@ export class Room {
   }
 
   // ---------------------------------------------------------------------
+  // Alianzas: formación instantánea (fuera del ciclo de rondas) con
+  // confirmación en tiempo real; romperlas por traición se resuelve al
+  // cerrar la ronda (ver resolverRondaActual).
+  // ---------------------------------------------------------------------
+  aliadosDe(jugadorId) {
+    const ids = new Set();
+    for (const [a, b] of this.estado.alianzas) {
+      if (a === jugadorId) ids.add(b);
+      else if (b === jugadorId) ids.add(a);
+    }
+    return ids;
+  }
+
+  sonAliados(a, b) {
+    return existeAlianza(this.estado.alianzas, a, b);
+  }
+
+  proponerAlianza(deId, objetivoId) {
+    if (this.estado.fase !== "accion") throw new Error("Solo podés proponer alianzas durante la fase de acción.");
+    if (deId === objetivoId) throw new Error("No podés aliarte con vos mismo.");
+    const de = this.jugadorPorId(deId);
+    const objetivo = this.jugadorPorId(objetivoId);
+    if (!de || !objetivo) throw new Error("Jugador no encontrado.");
+    if (this.sonAliados(deId, objetivoId)) throw new Error("Ya están aliados.");
+    const yaPropuesta = this.estado.propuestasAlianza.some((p) => p.deId === deId && p.aId === objetivoId);
+    if (yaPropuesta) return;
+
+    this.estado.propuestasAlianza.push({ deId, aId: objetivoId });
+    this.tocarActividad();
+
+    if (objetivo.socketId) {
+      this.io.to(objetivo.socketId).emit("alianza_propuesta", { deId, deNombre: de.nombre, deIcono: de.icono });
+    }
+    if (objetivo.esBot) {
+      const demora = DEMORA_BOT_MIN_MS + Math.random() * DEMORA_BOT_MAX_MS;
+      const handle = setTimeout(() => {
+        const sigueEnPie = this.estado.propuestasAlianza.some((p) => p.deId === deId && p.aId === objetivoId);
+        if (!sigueEnPie) return;
+        this.responderAlianza(objetivoId, deId, decidirRespuestaAlianzaBot());
+      }, demora);
+      this.timeoutsBots.push(handle);
+    }
+  }
+
+  responderAlianza(objetivoId, deId, aceptar) {
+    const idx = this.estado.propuestasAlianza.findIndex((p) => p.deId === deId && p.aId === objetivoId);
+    if (idx === -1) return;
+    this.estado.propuestasAlianza.splice(idx, 1);
+    const de = this.jugadorPorId(deId);
+    const objetivo = this.jugadorPorId(objetivoId);
+    if (!de || !objetivo) return;
+    this.tocarActividad();
+
+    if (aceptar) {
+      this.estado.alianzas = agregarAlianza(this.estado.alianzas, deId, objetivoId);
+      this.estado.historial.push(`🤝 ${de.icono} ${de.nombre} y ${objetivo.icono} ${objetivo.nombre} sellaron una alianza.`);
+      this.emitirATodos("alianza_formada", { a: deId, b: objetivoId });
+      this.emitirSnapshot();
+    } else if (de.socketId) {
+      this.io.to(de.socketId).emit("alianza_rechazada", { objetivoId, objetivoNombre: objetivo.nombre });
+    }
+  }
+
+  programarBotsAlianza() {
+    const bots = this.estado.jugadores.filter((j) => j.esBot);
+    const limiteDemora = this.estado.configuracion.tiempoLimite
+      ? Math.min(DEMORA_BOT_MAX_MS, this.estado.configuracion.tiempoLimite - 1000)
+      : DEMORA_BOT_MAX_MS;
+    for (const bot of bots) {
+      const demora = DEMORA_BOT_MIN_MS + Math.random() * Math.max(limiteDemora - DEMORA_BOT_MIN_MS, 0);
+      const handle = setTimeout(() => {
+        if (this.estado.fase !== "accion") return;
+        const aliados = this.aliadosDe(bot.id);
+        const candidatos = this.estado.jugadores
+          .filter((j) => j.id !== bot.id && !aliados.has(j.id))
+          .filter(
+            (j) =>
+              !this.estado.propuestasAlianza.some(
+                (p) => (p.deId === bot.id && p.aId === j.id) || (p.deId === j.id && p.aId === bot.id)
+              )
+          )
+          .map((j) => j.id);
+        const elegido = decidirPropuestaAlianzaBot(candidatos);
+        if (elegido != null) {
+          try {
+            this.proponerAlianza(bot.id, elegido);
+          } catch {
+            // sin problema, se reintenta en otra ronda
+          }
+        }
+      }, demora);
+      this.timeoutsBots.push(handle);
+    }
+  }
+
+  // ---------------------------------------------------------------------
   // Snapshot público (nunca incluye acciones/votos secretos de otros)
   // ---------------------------------------------------------------------
   snapshot() {
@@ -169,6 +274,7 @@ export class Room {
           }
         : null,
       historial: e.historial,
+      alianzas: e.alianzas,
       sueteMuerte: e.sueteMuerte,
       terminada: e.terminada,
       ganadorId: e.ganadorId,
@@ -195,6 +301,7 @@ export class Room {
   iniciarRonda() {
     this.estado.ronda += 1;
     this.estado.accionesPendientes = {};
+    this.estado.propuestasAlianza = [];
     this.estado.profeciaRondaActual = null;
     if (RONDAS_PROFECIA.includes(this.estado.ronda)) {
       this.iniciarVotacionProfecia();
@@ -313,6 +420,7 @@ export class Room {
       this.timers.accion = setTimeout(() => this.forzarAccionesPendientes(), tiempo);
     }
     this.programarBotsAccion();
+    this.programarBotsAlianza();
   }
 
   programarBotsAccion() {
@@ -325,7 +433,8 @@ export class Room {
       const handle = setTimeout(() => {
         if (this.estado.fase !== "accion" || this.estado.accionesPendientes[bot.id]) return;
         try {
-          this.jugarAccion(bot.id, decidirAccionBot(bot, this.estado.jugadores));
+          const accion = decidirAccionBot(bot, this.estado.jugadores, this.aliadosDe(bot.id));
+          this.jugarAccion(bot.id, accion);
         } catch {
           // se resuelve igual con forzarAccionesPendientes si algo falla
         }
@@ -384,7 +493,16 @@ export class Room {
   resolverRondaActual() {
     this.limpiarTimer("accion");
     const jugadoresAntes = new Map(this.estado.jugadores.map((j) => [j.id, j.castillo]));
-    const { eventos } = resolverRonda(this.estado.jugadores, this.estado.accionesPendientes, this.estado.profeciaRondaActual);
+
+    const { traiciones, alianzasRestantes } = resolverTraiciones(this.estado.alianzas, this.estado.accionesPendientes);
+    this.estado.alianzas = alianzasRestantes;
+
+    const { eventos: eventosCombate } = resolverRonda(
+      this.estado.jugadores,
+      this.estado.accionesPendientes,
+      this.estado.profeciaRondaActual
+    );
+    const eventos = [...traiciones, ...eventosCombate];
 
     for (const j of this.estado.jugadores) {
       if (jugadoresAntes.get(j.id) < 2 && j.castillo >= 2) {

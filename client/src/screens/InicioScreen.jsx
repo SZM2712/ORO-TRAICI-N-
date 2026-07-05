@@ -9,6 +9,7 @@ export default function InicioScreen() {
   const [icono, setIcono] = useState(ANIMALES[0]);
   const [codigo, setCodigo] = useState("");
   const [cargando, setCargando] = useState(false);
+  const [totalJugadoresVsMaquina, setTotalJugadoresVsMaquina] = useState(3);
 
   const validarNombre = () => nombre.trim().length > 0;
 
@@ -23,7 +24,7 @@ export default function InicioScreen() {
   const alJugarContraMaquina = async () => {
     if (!validarNombre()) return setError("Ponele un nombre a tu aldea.");
     setCargando(true);
-    const res = await crearSala({ nombre, icono, vsMaquina: true, cantidadBots: 2 });
+    const res = await crearSala({ nombre, icono, vsMaquina: true, cantidadBots: totalJugadoresVsMaquina - 1 });
     setCargando(false);
     if (!res.ok) setError(res.error);
   };
@@ -76,13 +77,33 @@ export default function InicioScreen() {
           Crear Sala
         </button>
 
-        <button
-          onClick={alJugarContraMaquina}
-          disabled={cargando}
-          className="w-full rounded-xl py-3 border-2 border-oro/60 text-oro font-titulo text-base tracking-wide active:scale-95 disabled:opacity-50"
-        >
-          🤖 Probar contra la máquina
-        </button>
+        <div className="rounded-xl border-2 border-oro/60 p-3 space-y-2">
+          <div className="flex items-center justify-between text-xs text-crema/70 font-mono">
+            <span>Jugadores totales (vos + bots)</span>
+            <span className="text-oro text-sm">{totalJugadoresVsMaquina}</span>
+          </div>
+          <div className="grid grid-cols-6 gap-1.5">
+            {[3, 4, 5, 6, 7, 8].map((n) => (
+              <button
+                key={n}
+                onClick={() => setTotalJugadoresVsMaquina(n)}
+                className={`rounded-lg py-2 text-sm border-2 ${
+                  totalJugadoresVsMaquina === n ? "border-oro bg-oro/15 text-oro" : "border-white/10 text-crema/70"
+                }`}
+                aria-pressed={totalJugadoresVsMaquina === n}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={alJugarContraMaquina}
+            disabled={cargando}
+            className="w-full rounded-xl py-3 bg-oro/15 text-oro font-titulo text-base tracking-wide active:scale-95 disabled:opacity-50"
+          >
+            🤖 Probar contra la máquina
+          </button>
+        </div>
 
         <div className="flex items-center gap-2">
           <div className="flex-1 h-px bg-white/10" />
