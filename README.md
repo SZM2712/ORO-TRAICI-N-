@@ -79,6 +79,18 @@ Mientras tanto, `client/src/components/Aldea.jsx` dibuja un placeholder con **la
 
 Cuando tengas los archivos, soltalos en `assets/svg/`, descomentá los imports en `assets/svg/index.js` y reemplazá el contenido de `Aldea.jsx` por las capas reales — el resto de la UI no necesita cambios.
 
+## Sonidos
+
+`client/src/hooks/useSonidos.js` ya está listo para reproducirlos; si el archivo no existe todavía, falla en silencio y el juego sigue andando sin audio. Van en `client/src/assets/sounds/` (formato mp3):
+
+| Archivo | Cuándo suena | Estilo sugerido | Duración |
+|---|---|---|---|
+| `moneda.mp3` | Al cosechar oro | Tintineo de monedas, ligero (suena seguido) | ~0.3–0.6s |
+| `espadas.mp3` | Al asaltar (exitoso o bloqueado) | Choque de espadas, contundente | ~0.4–0.8s |
+| `fuego.mp3` | Al incendiar una granja (antorcha) | Crepitar de fuego / whoosh | ~0.5–1s |
+| `fanfarria.mp3` | Al terminar la partida | Fanfarria triunfal, una sola vez | ~2–4s |
+| `mensaje.mp3` | Al recibir un mensaje del chat de aliados | Notificación corta y sutil | ~0.2–0.4s |
+
 ## Reglas implementadas (resumen)
 
 - Estado inicial: 5 de oro, 1 granja, sin muralla, castillo etapa 0.
@@ -104,6 +116,7 @@ Cuando tengas los archivos, soltalos en `assets/svg/`, descomentá los imports e
   - **Rebelión Popular (profecía) 🔥👑:** nueva carta del mazo de profecías; al salir sorteada, el líder (castillo más avanzado del momento) pierde una etapa de castillo al iniciar la ronda, sin que nadie tenga que gastar su asedio.
 - **Modo de prueba contra la máquina:** en la pantalla de inicio se elige el total de jugadores (3 a 8, vos incluido) y el botón "🤖 Probar contra la máquina" crea la sala con esa cantidad de bots (`CPU ...`) para poder probar el juego sin necesitar más gente. Los bots juegan, votan y también proponen/responden alianzas solos con una IA simple (prioriza construir, prefiere no traicionar a un aliado salvo que no tenga otro objetivo), con una demora aleatoria de 1–3 s para que se sienta natural.
 - **Bots en salas normales:** también desde el lobby de una sala creada con "Crear Sala" (con gente real), el anfitrión puede tocar "🤖 Agregar bot" las veces que quiera mientras la sala no esté llena, para completar el mínimo de 3 jugadores o sumar rivales extra sin depender de que se una más gente.
+- **Tutorial (`ModalTutorial.jsx`):** un carrusel de 6 pasos (objetivo, acciones por ronda, alianzas, traición, profecías, mapa) que aparece solo la primera vez que alguien entra al lobby (guardado en `localStorage`, clave `oro_traicion_tutorial_visto`) y se puede reabrir en cualquier momento con el botón "❓ Cómo jugar" del lobby o de la pantalla de juego.
 
 ## Despliegue
 

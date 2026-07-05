@@ -13,6 +13,7 @@ import ModalPropuestaAlianza from "../components/ModalPropuestaAlianza.jsx";
 import ModalDueloTesoro from "../components/ModalDueloTesoro.jsx";
 import PanelChatAlianza from "../components/PanelChatAlianza.jsx";
 import BotonMute from "../components/BotonMute.jsx";
+import ModalTutorial from "../components/ModalTutorial.jsx";
 import { useSonidos } from "../hooks/useSonidos.js";
 import { ETAPA_AMBICION } from "../utils/format.js";
 
@@ -52,6 +53,7 @@ export default function JuegoScreen() {
   const [alertaPanico, setAlertaPanico] = useState(null);
   const [propuestasEnviadas, setPropuestasEnviadas] = useState(new Set());
   const [fichaSeleccionadaId, setFichaSeleccionadaId] = useState(null);
+  const [mostrarTutorial, setMostrarTutorial] = useState(false);
 
   useEffect(() => {
     setBorrador({ tipo: null });
@@ -180,6 +182,9 @@ export default function JuegoScreen() {
               forzar pendientes
             </button>
           )}
+          <button onClick={() => setMostrarTutorial(true)} className="text-xs text-acero font-mono" aria-label="Cómo jugar">
+            ❓
+          </button>
           <BotonMute silenciado={silenciado} alternarMute={alternarMute} />
         </div>
       </header>
@@ -275,6 +280,7 @@ export default function JuegoScreen() {
         jugadores={snapshot.jugadores}
         onElegir={elegirDuelo}
       />
+      {mostrarTutorial && <ModalTutorial onCerrar={() => setMostrarTutorial(false)} />}
     </div>
   );
 }

@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useGame } from "../state/GameContext.jsx";
 import MonedaOro from "../components/MonedaOro.jsx";
+import ModalTutorial from "../components/ModalTutorial.jsx";
 
 const OPCIONES_TIEMPO = [
   { valor: null, etiqueta: "Sin límite" },
@@ -8,11 +9,23 @@ const OPCIONES_TIEMPO = [
   { valor: 30000, etiqueta: "30 s" },
 ];
 
+const CLAVE_TUTORIAL_VISTO = "oro_traicion_tutorial_visto";
+
 export default function LobbyScreen() {
   const { snapshot, esHost, empezarPartida, agregarBot, salirDeSala, setError } = useGame();
   const [tiempoLimite, setTiempoLimite] = useState(null);
   const [cargando, setCargando] = useState(false);
   const [agregandoBot, setAgregandoBot] = useState(false);
+  const [mostrarTutorial, setMostrarTutorial] = useState(false);
+
+  useEffect(() => {
+    if (localStorage.getItem(CLAVE_TUTORIAL_VISTO) !== "1") setMostrarTutorial(true);
+  }, []);
+
+  const alCerrarTutorial = () => {
+    localStorage.setItem(CLAVE_TUTORIAL_VISTO, "1");
+    setMostrarTutorial(false);
+  };
 
   const jugadores = snapshot.jugadores;
   const puedeEmpezar = jugadores.length >= 3;
@@ -34,9 +47,14 @@ export default function LobbyScreen() {
 
   return (
     <div className="flex-1 flex flex-col items-center px-6 py-8 gap-6">
-      <button onClick={salirDeSala} className="self-start text-xs text-crema/40 font-mono">
-        ← salir
-      </button>
+      <div className="w-full flex items-center justify-between">
+        <button onClick={salirDeSala} className="text-xs text-crema/40 font-mono">
+          ← salir
+        </button>
+        <button onClick={() => setMostrarTutorial(true)} className="text-xs text-acero font-mono">
+          ❓ Cómo jugar
+        </button>
+      </div>
 
       <div className="text-center space-y-2">
         <p className="text-xs uppercase tracking-widest text-crema/50">Código de sala</p>
@@ -100,6 +118,8 @@ export default function LobbyScreen() {
         </div>
       )}
       {!esHost && <p className="text-sm text-crema/50 text-center">Esperando a que el anfitrión empiece la partida…</p>}
+
+      {mostrarTutorial && <ModalTutorial onCerrar={alCerrarTutorial} />}
     </div>
   );
 }
