@@ -89,10 +89,13 @@ Cuando tengas los archivos, soltalos en `assets/svg/`, descomentá los imports e
 - Reconexión: el cliente guarda `{roomCode, playerToken}` en `localStorage` y se reincorpora con su estado intacto al reconectar.
 - Anti-bloqueo: tiempo por ronda configurable por el anfitrión (sin límite / 60 s / 30 s) y botón de "forzar pendientes".
 - Salas en memoria, se limpian solas tras 2 h de inactividad (no hay base de datos).
-- **Alianzas:** durante la fase de acción, cualquier jugador puede tocar "🤝 Proponer alianza" en la tarjeta de un rival; si el otro acepta (confirmación en tiempo real, no espera al cierre de la ronda), quedan aliados — visible para toda la sala en la Crónica del Reino y con una insignia "🤝 aliado" en las tarjetas. Un jugador puede tener varias alianzas simultáneas. No hay bloqueo automático de asaltos: si alguno de los dos asalta al otro, la alianza se rompe en el acto y el asalto se resuelve igual, marcado como traición ("🗡️💔 ¡TRAICIÓN!") en la crónica. Tener una alianza da tres beneficios reales mientras dura:
-  - **Asalto en pinza:** si vos y tu aliado asaltan al mismo objetivo en la misma ronda, ambos se llevan un `MULTIPLICADOR_PINZA` (1.5×) extra de botín — le da a la alianza un propósito ofensivo para derribar juntos a un rival fuerte (o al líder ambicioso).
-  - **Envío de oro:** nueva acción secreta "🎁 Enviar oro" para transferirle parte de tu oro a un aliado (se resuelve después de los robos y antes de las construcciones, así lo puede usar esa misma ronda). Si la alianza se rompió esa ronda, el envío falla y el oro no sale de tu bolsillo.
-  - **Defensa conjunta:** si vos y tu aliado eligen "Defender" en la misma ronda, ambos ganan `BONUS_DEFENSA_CONJUNTA` de oro extra además del bono normal de defensor.
+- **Alianzas:** durante la fase de acción, cualquier jugador puede tocar "🤝 Proponer alianza" en la tarjeta de un rival; si el otro acepta (confirmación en tiempo real, no espera al cierre de la ronda), quedan aliados — visible para toda la sala en la Crónica del Reino y con una insignia "🤝 aliado" en las tarjetas. Un jugador puede tener varias alianzas simultáneas. Tener una alianza da varios beneficios reales mientras dura:
+  - **Asalto en pinza + tesoro oculto:** si vos y tu aliado asaltan al mismo objetivo en la misma ronda, el botín de esa pinza (con el bono `MULTIPLICADOR_PINZA`, 1.5×, ya incluido) no va al oro visible de ninguno de los dos — se acumula oculto en un tesoro compartido de la alianza, que solo ven ustedes dos (evento privado `tesoro_alianza`, badge "🔒💰" en la tarjeta). Ese tesoro crece un `INTERES_TESORO_ALIANZA` (10%) cada ronda que la alianza se mantenga en pie.
+  - **Defender a un aliado:** "Defender" puede apuntar a un aliado en vez de a vos mismo — lo protege a ÉL de asaltos esta ronda, pero vos quedás expuesto (es un sacrificio, no un bono gratis). Si los dos se autodefienden la misma ronda (defensa conjunta), ambos ganan `BONUS_DEFENSA_CONJUNTA` de oro extra.
+  - **Envío de oro:** acción secreta "🎁 Enviar oro" para transferirle parte de tu oro a un aliado (se resuelve después de los robos y antes de las construcciones, así lo puede usar esa misma ronda). Si la alianza se rompió esa ronda, el envío falla y el oro no sale de tu bolsillo.
+  - **Romper la alianza:** hay dos formas, con consecuencias distintas para el tesoro oculto:
+    - **Formal** ("💔 Romper alianza", disponible en cualquier momento de la fase de acción): se reparte 50/50 y se anuncia en la crónica cuánto le tocó a cada uno.
+    - **Por traición** (uno asalta al otro): la alianza se rompe en el acto, marcado como traición ("🗡️💔 ¡TRAICIÓN!"). El tesoro se decide con una moneda cargada a favor del traicionado (`PROBABILIDAD_TRAICIONADO_GANA_TESORO`, 60%) — quien gana se lo lleva completo, anunciado en la crónica; no se lo queda automáticamente quien atacó primero.
 - **Ambición del Trono:** quien tenga el castillo en etapa 2 o 3 asalta con el doble de botín (👑, ver `ETAPA_AMBICION`/`MULTIPLICADOR_AMBICION` en `config.js`) mientras se mantenga ahí — un beneficio real y a propósito para el líder, para darle al resto una razón concreta (envidia, miedo) para unirse contra él antes de que termine su castillo. La alerta de "castillo en etapa 2" ahora avisa explícitamente de esto, y las tarjetas de todos los jugadores muestran la corona mientras dure.
 - **Robar castillos:** hay dos formas de bajarle una etapa de castillo a otro jugador (nunca te la quedás vos, solo lo debilita):
   - **Asedio 🏰💥:** al asaltar a alguien con el castillo en etapa 2 o más, podés marcar la opción "Asedio" — es de una sola vez por partida (como la antorcha). Si el asalto no es bloqueado, además del robo normal, el objetivo pierde una etapa de castillo. Si te bloquean, el asedio se gasta en vano igual.
@@ -144,13 +147,16 @@ Con eso, cualquiera puede entrar desde su celular a la URL de Netlify, crear o u
 | `votar_pergamino` | cliente → servidor | Voto secreto por A, B o C |
 | `proponer_alianza` | cliente → servidor | Propone una alianza a otro jugador (solo en fase de acción) |
 | `responder_alianza` | cliente → servidor | Acepta o rechaza una propuesta de alianza recibida |
-| `snapshot_estado` | servidor → sala | Estado público completo (nunca incluye jugadas/votos secretos ajenos), incluye `alianzas` |
+| `romper_alianza` | cliente → servidor | Rompe una alianza formalmente (reparte el tesoro 50/50, solo en fase de acción) |
+| `snapshot_estado` | servidor → sala | Estado público completo (nunca incluye jugadas/votos secretos ajenos, ni tesoros), incluye `alianzas` |
 | `alianza_propuesta` | servidor → jugador (privado) | Notifica al destinatario de una propuesta de alianza |
 | `alianza_rechazada` | servidor → jugador (privado) | Avisa al proponente que su propuesta fue rechazada |
+| `tesoro_alianza` | servidor → los 2 aliados (privado) | Monto actualizado del tesoro oculto con ese aliado, tras un asalto en pinza o el interés de la ronda |
 | `iniciar_votacion` | servidor → sala | Arranca la votación de profecías de la ronda |
 | `contenido_oraculo` | servidor → jugador (privado) | Contenido real de los 3 pergaminos, solo para dueños de la Torre del Oráculo |
 | `votacion_revelada` | servidor → sala | Pergamino ganador, conteo y quién votó qué |
 | `alianza_formada` | servidor → sala | Avisa que una alianza se formó (también se registra en la Crónica del Reino) |
+| `alianza_rota` | servidor → sala | Avisa que una alianza terminó (formal o por traición), con el monto repartido del tesoro si había |
 | `ronda_revelada` | servidor → sala | Eventos y narración dramática de la ronda resuelta |
 | `fin_partida` | servidor → sala | Ganador y podio final |
 | `error` | servidor → cliente | Mensaje de error puntual (acción inválida, sala llena, etc.) |

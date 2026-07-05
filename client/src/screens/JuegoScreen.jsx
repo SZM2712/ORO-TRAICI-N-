@@ -24,11 +24,15 @@ export default function JuegoScreen() {
     rondaRevelada,
     finPartida,
     propuestaAlianzaRecibida,
+    tesorosAlianza,
+    alianzaRechazadaId,
+    limpiarAlianzaRechazada,
     jugarAccion,
     votarPergamino,
     forzarPendientes,
     proponerAlianza,
     responderAlianza,
+    romperAlianza,
     esHost,
     limpiarRondaRevelada,
     limpiarVotacionRevelada,
@@ -48,6 +52,16 @@ export default function JuegoScreen() {
   useEffect(() => {
     setPropuestasEnviadas(new Set());
   }, [snapshot.ronda]);
+
+  useEffect(() => {
+    if (alianzaRechazadaId == null) return;
+    setPropuestasEnviadas((prev) => {
+      const copia = new Set(prev);
+      copia.delete(alianzaRechazadaId);
+      return copia;
+    });
+    limpiarAlianzaRechazada();
+  }, [alianzaRechazadaId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (snapshot.fase !== "profecia") limpiarVotacionRevelada();
@@ -83,7 +97,7 @@ export default function JuegoScreen() {
     if (borrador.tipo === "asaltar") {
       const esAmbicioso = jugador.castillo >= ETAPA_AMBICION;
       setBorrador((b) => ({ ...b, objetivoId: jugador.id, asedio: esAmbicioso ? b.asedio : false }));
-    } else if (borrador.tipo === "enviar_oro" && misAliadosIds.has(jugador.id)) {
+    } else if ((borrador.tipo === "enviar_oro" || borrador.tipo === "defender") && misAliadosIds.has(jugador.id)) {
       setBorrador((b) => ({ ...b, objetivoId: jugador.id }));
     }
   };
@@ -99,6 +113,11 @@ export default function JuegoScreen() {
         return copia;
       });
     }
+  };
+
+  const alRomperAlianza = async (objetivoId) => {
+    const res = await romperAlianza(objetivoId);
+    if (!res.ok) setError(res.error);
   };
 
   const onSellar = async () => {
@@ -168,6 +187,7 @@ export default function JuegoScreen() {
           {rivales.map((j) => {
             const esAliado = misAliadosIds.has(j.id);
             const propuestaEnviada = propuestasEnviadas.has(j.id);
+            const tesoro = tesorosAlianza[j.id] || 0;
             return (
               <div key={j.id} className="flex flex-col gap-1">
                 <AldeaMiniatura
@@ -176,9 +196,14 @@ export default function JuegoScreen() {
                   onClick={() => alTocarRival(j)}
                   deshabilitado={
                     miJugador.selloJugada ||
-                    (borrador.tipo === "asaltar" ? false : borrador.tipo === "enviar_oro" ? !esAliado : true)
+                    (borrador.tipo === "asaltar"
+                      ? false
+                      : borrador.tipo === "enviar_oro" || borrador.tipo === "defender"
+                      ? !esAliado
+                      : true)
                   }
                   esAliado={esAliado}
+                  tesoro={esAliado ? tesoro : 0}
                 />
                 {snapshot.fase === "accion" && !esAliado && !miJugador.selloJugada && (
                   <button
@@ -187,6 +212,14 @@ export default function JuegoScreen() {
                     className="text-[10px] rounded-lg py-1 border border-acero/50 text-acero disabled:opacity-40 disabled:text-crema/40 active:scale-95"
                   >
                     {propuestaEnviada ? "Propuesta enviada…" : "🤝 Proponer alianza"}
+                  </button>
+                )}
+                {snapshot.fase === "accion" && esAliado && (
+                  <button
+                    onClick={() => alRomperAlianza(j.id)}
+                    className="text-[10px] rounded-lg py-1 border border-sangre/50 text-sangre active:scale-95"
+                  >
+                    💔 Romper alianza
                   </button>
                 )}
               </div>

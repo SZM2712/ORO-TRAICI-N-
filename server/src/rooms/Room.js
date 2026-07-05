@@ -5,6 +5,7 @@ import {
   TIEMPO_VOTACION_MS,
   ANIMALES,
   ETAPA_AMBICION,
+  INTERES_TESORO_ALIANZA,
 } from "../config.js";
 import { crearEstadoSala, crearJugador, jugadorPublico } from "../game/state.js";
 import {
@@ -17,7 +18,10 @@ import {
   costoDeItem,
   existeAlianza,
   agregarAlianza,
+  quitarAlianza,
+  claveAlianza,
   resolverTraiciones,
+  resolverTesoroTraicion,
 } from "../game/GameEngine.js";
 import { narrarEventos } from "../game/narrativa.js";
 import { generarPlayerToken } from "../utils/ids.js";
@@ -219,6 +223,44 @@ export class Room {
     } else if (de.socketId) {
       this.io.to(de.socketId).emit("alianza_rechazada", { objetivoId, objetivoNombre: objetivo.nombre });
     }
+  }
+
+  // Romper la alianza "en buenos términos": a diferencia de la traición, acá
+  // no hay minijuego — el tesoro compartido se reparte 50/50 y se anuncia.
+  romperAlianzaFormal(jugadorId, objetivoId) {
+    if (this.estado.fase !== "accion") throw new Error("Solo podés romper alianzas durante la fase de acción.");
+    if (!this.sonAliados(jugadorId, objetivoId)) throw new Error("No están aliados.");
+    const jugador = this.jugadorPorId(jugadorId);
+    const objetivo = this.jugadorPorId(objetivoId);
+    if (!jugador || !objetivo) throw new Error("Jugador no encontrado.");
+
+    this.estado.alianzas = quitarAlianza(this.estado.alianzas, jugadorId, objetivoId);
+    const clave = claveAlianza(jugadorId, objetivoId);
+    const monto = this.estado.tesorosAlianza[clave] || 0;
+    delete this.estado.tesorosAlianza[clave];
+    this.tocarActividad();
+
+    if (monto > 0) {
+      const mitad = Math.floor(monto / 2);
+      jugador.oro += mitad;
+      objetivo.oro += monto - mitad;
+      this.estado.historial.push(
+        `💔🤝 ${jugador.icono} ${jugador.nombre} y ${objetivo.icono} ${objetivo.nombre} rompieron su alianza en buenos términos y se repartieron ${monto} de oro de su tesoro secreto (${mitad}/${monto - mitad}).`
+      );
+    } else {
+      this.estado.historial.push(`💔🤝 ${jugador.icono} ${jugador.nombre} y ${objetivo.icono} ${objetivo.nombre} rompieron su alianza en buenos términos.`);
+    }
+
+    this.emitirATodos("alianza_rota", { a: jugadorId, b: objetivoId, monto, formal: true });
+    this.emitirSnapshot();
+  }
+
+  emitirTesoroAlianza(aId, bId) {
+    const monto = this.estado.tesorosAlianza[claveAlianza(aId, bId)] || 0;
+    const a = this.jugadorPorId(aId);
+    const b = this.jugadorPorId(bId);
+    if (a?.socketId) this.io.to(a.socketId).emit("tesoro_alianza", { conId: bId, monto });
+    if (b?.socketId) this.io.to(b.socketId).emit("tesoro_alianza", { conId: aId, monto });
   }
 
   programarBotsAlianza() {
@@ -483,6 +525,13 @@ export class Room {
       if (!Number.isFinite(cantidad) || cantidad <= 0) throw new Error("Cantidad de oro inválida.");
       return { tipo, objetivoId: objetivo.id, cantidad };
     }
+    if (tipo === "defender") {
+      if (accion.objetivoId == null) return { tipo };
+      const objetivo = this.jugadorPorId(accion.objetivoId);
+      if (!objetivo || objetivo.id === jugador.id) throw new Error("Objetivo de defensa inválido.");
+      if (!this.sonAliados(jugador.id, objetivo.id)) throw new Error("Solo podés defender a un aliado.");
+      return { tipo, objetivoId: objetivo.id };
+    }
     return { tipo };
   }
 
@@ -518,16 +567,45 @@ export class Room {
     this.limpiarTimer("accion");
     const jugadoresAntes = new Map(this.estado.jugadores.map((j) => [j.id, j.castillo]));
 
+    // Interés del tesoro compartido: crece un poco cada ronda que la alianza
+    // aguanta, antes de sumarle el botín en pinza de esta ronda.
+    for (const [a, b] of this.estado.alianzas) {
+      const clave = claveAlianza(a, b);
+      if (this.estado.tesorosAlianza[clave] > 0) {
+        this.estado.tesorosAlianza[clave] = Math.floor(this.estado.tesorosAlianza[clave] * (1 + INTERES_TESORO_ALIANZA));
+      }
+    }
+
     const { traiciones, alianzasRestantes } = resolverTraiciones(this.estado.alianzas, this.estado.accionesPendientes);
     this.estado.alianzas = alianzasRestantes;
+
+    // Minijuego (moneda cargada) para repartirse el tesoro de una alianza
+    // rota por traición: no se lo queda automáticamente quien atacó primero.
+    const eventosTesoro = [];
+    for (const t of traiciones) {
+      const clave = claveAlianza(t.atacanteId, t.objetivoId);
+      const monto = this.estado.tesorosAlianza[clave];
+      if (!monto) continue;
+      delete this.estado.tesorosAlianza[clave];
+      const ganaTraicionado = resolverTesoroTraicion();
+      const ganadorId = ganaTraicionado ? t.objetivoId : t.atacanteId;
+      const perdedorId = ganadorId === t.atacanteId ? t.objetivoId : t.atacanteId;
+      this.jugadorPorId(ganadorId).oro += monto;
+      eventosTesoro.push({ tipo: "tesoro_disputado", ganadorId, perdedorId, monto });
+    }
 
     const { eventos: eventosCombate } = resolverRonda(
       this.estado.jugadores,
       this.estado.accionesPendientes,
       this.estado.profeciaRondaActual,
-      this.estado.alianzas
+      this.estado.alianzas,
+      this.estado.tesorosAlianza
     );
-    const eventos = [...traiciones, ...eventosCombate];
+    const eventos = [...traiciones, ...eventosTesoro, ...eventosCombate];
+
+    for (const [a, b] of this.estado.alianzas) {
+      this.emitirTesoroAlianza(a, b);
+    }
 
     for (const j of this.estado.jugadores) {
       if (jugadoresAntes.get(j.id) < 2 && j.castillo >= 2) {

@@ -7,7 +7,10 @@ import {
   determinarLider,
   existeAlianza,
   agregarAlianza,
+  quitarAlianza,
+  claveAlianza,
   resolverTraiciones,
+  resolverTesoroTraicion,
   aplicarEfectoProfecia,
 } from "../src/game/GameEngine.js";
 
@@ -215,23 +218,27 @@ test("resolverTraiciones: sin asaltos entre aliados, todas las alianzas siguen i
   assert.deepEqual(alianzasRestantes, [[1, 2]]);
 });
 
-test("asalto en pinza: dos aliados asaltando al mismo objetivo se llevan un bono cada uno", () => {
+test("asalto en pinza: el botín no va al oro personal, se acumula oculto en el tesoro de la alianza", () => {
   const [j1, j2, j3] = tresJugadores();
   const alianzas = [[1, 2]];
+  const tesoros = {};
   const acciones = {
     1: { tipo: "asaltar", objetivoId: 3, antorcha: false },
     2: { tipo: "asaltar", objetivoId: 3, antorcha: false },
     3: { tipo: "cosechar" },
   };
-  const { eventos } = resolverRonda([j1, j2, j3], acciones, null, alianzas);
+  const { eventos } = resolverRonda([j1, j2, j3], acciones, null, alianzas, tesoros);
 
   const asaltoJ1 = eventos.find((e) => e.tipo === "asalto_exitoso" && e.atacanteId === 1);
   const asaltoJ2 = eventos.find((e) => e.tipo === "asalto_exitoso" && e.atacanteId === 2);
   assert.equal(asaltoJ1.enPinza, true);
   assert.equal(asaltoJ1.robo, 4, "3 de robo normal * 1.5 de bono en pinza, redondeado abajo");
   assert.equal(asaltoJ2.enPinza, true);
-  assert.equal(asaltoJ2.robo, 1, "solo queda 1 de oro en la víctima tras el primer asalto");
+  assert.equal(asaltoJ2.robo, 1, "solo quedaba 1 de oro en la víctima tras el primer asalto");
+  assert.equal(j1.oro, 5, "el botín en pinza no queda en su oro visible");
+  assert.equal(j2.oro, 5, "tampoco en el de su aliado");
   assert.equal(j3.oro, 5 - 4 - 1 + 3, "perdió 5 en total y cosechó 3");
+  assert.equal(tesoros[claveAlianza(1, 2)], 5, "los 4 + 1 robados se acumulan ocultos en el tesoro compartido");
 });
 
 test("asalto en pinza: no aplica si los dos atacantes no son aliados entre sí", () => {
@@ -355,4 +362,46 @@ test("profecía Rebelión Popular: sin efecto si nadie tiene castillo construido
   const [j1, j2, j3] = tresJugadores();
   const { eventos } = aplicarEfectoProfecia([j1, j2, j3], "rebelion_popular");
   assert.ok(eventos.some((e) => e.tipo === "profecia_rebelion_sin_efecto"));
+});
+
+test("defensa de aliado: protege al aliado y el que lo cubre cobra el bono", () => {
+  const [j1, j2, j3] = tresJugadores();
+  const alianzas = [[1, 2]];
+  const acciones = {
+    1: { tipo: "defender", objetivoId: 2 }, // j1 protege a j2, no a sí mismo
+    2: { tipo: "cosechar" },
+    3: { tipo: "asaltar", objetivoId: 2, antorcha: false },
+  };
+  const { eventos } = resolverRonda([j1, j2, j3], acciones, null, alianzas);
+  assert.ok(eventos.some((e) => e.tipo === "asalto_bloqueado" && e.objetivoId === 2), "j2 quedó protegido por j1");
+  assert.ok(eventos.some((e) => e.tipo === "defensa_aliado" && e.jugadorId === 1 && e.objetivoId === 2 && e.bono === 1));
+  assert.equal(j1.oro, 5 + 1, "j1 gana el bono normal de defensor por cubrir a su aliado");
+});
+
+test("defensa de aliado: quien defiende a otro queda expuesto, no se protege a sí mismo", () => {
+  const [j1, j2, j3] = tresJugadores();
+  const alianzas = [[1, 2]];
+  const acciones = {
+    1: { tipo: "defender", objetivoId: 2 },
+    2: { tipo: "cosechar" },
+    3: { tipo: "asaltar", objetivoId: 1, antorcha: false },
+  };
+  const { eventos } = resolverRonda([j1, j2, j3], acciones, null, alianzas);
+  assert.ok(eventos.some((e) => e.tipo === "asalto_exitoso" && e.objetivoId === 1), "j1 no se protegió a sí mismo, el asalto pasa");
+});
+
+test("claveAlianza: es estable sin importar el orden de los ids", () => {
+  assert.equal(claveAlianza(3, 1), "1-3");
+  assert.equal(claveAlianza(1, 3), "1-3");
+});
+
+test("quitarAlianza: quita el par exacto sin tocar los demás", () => {
+  const alianzas = [[1, 2], [1, 3]];
+  assert.deepEqual(quitarAlianza(alianzas, 2, 1), [[1, 3]]);
+  assert.deepEqual(quitarAlianza(alianzas, 5, 6), alianzas, "no toca pares que no coinciden");
+});
+
+test("resolverTesoroTraicion: respeta el rng inyectado (moneda cargada a favor del traicionado)", () => {
+  assert.equal(resolverTesoroTraicion(() => 0.1), true, "rng bajo -> gana el traicionado");
+  assert.equal(resolverTesoroTraicion(() => 0.9), false, "rng alto -> gana el traidor");
 });

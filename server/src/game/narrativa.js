@@ -22,7 +22,7 @@ export function narrarEventos(eventos, jugadoresPorId) {
           `${tag(j(ev.atacanteId))} asaltó a ${tag(j(ev.objetivoId))} y robó ${ev.robo} de oro${
             ev.muralla ? " (la muralla amortiguó el golpe)" : ""
           }${ev.ambicioso ? " 👑 (¡su ambición por el trono duplicó el botín!)" : ""}${
-            ev.enPinza ? " 🤝⚔️ (asalto en pinza junto a su aliado: botín extra)" : ""
+            ev.enPinza ? " 🤝⚔️🔒 (asalto en pinza: el botín se guarda oculto en el tesoro de la alianza)" : ""
           }.`
         );
         break;
@@ -90,6 +90,20 @@ export function narrarEventos(eventos, jugadoresPorId) {
         break;
       case "profecia_traicion":
         frases.push(`🐍 La Traición en la Corte marcó a ${tag(j(ev.jugadorId))} como líder: no podrá bloquear esta ronda.`);
+        break;
+      case "defensa_aliado":
+        frases.push(
+          `🛡️🤝 ${tag(j(ev.jugadorId))} se jugó por su aliado ${tag(j(ev.objetivoId))} y ganó ${ev.bono} de oro, quedando expuesto él mismo${
+            ev.liderSinBloqueo ? " (¡pero la Traición en la Corte le impidió bloquear!)" : ""
+          }.`
+        );
+        break;
+      case "tesoro_disputado":
+        frases.push(
+          `🔒💰 El tesoro secreto de esa alianza (${ev.monto} de oro) salió a la luz: la moneda cayó del lado de ${tag(
+            j(ev.ganadorId)
+          )}, que se lo queda todo. ${tag(j(ev.perdedorId))} se quedó sin nada.`
+        );
         break;
       case "envio_oro":
         frases.push(`🎁 ${tag(j(ev.jugadorId))} le envió ${ev.cantidad} de oro a su aliado ${tag(j(ev.objetivoId))}.`);

@@ -22,4 +22,16 @@ export function registrarHandlersAlianza(io, socket, roomManager) {
       socket.emit("error", { message: e.message });
     }
   });
+
+  socket.on("romper_alianza", (payload, ack) => {
+    const sala = roomManager.obtener(socket.data.roomCode);
+    if (!sala) return ack?.({ ok: false, error: "Sala no encontrada." });
+    try {
+      sala.romperAlianzaFormal(socket.data.playerId, Number(payload?.objetivoId));
+      ack?.({ ok: true });
+    } catch (e) {
+      ack?.({ ok: false, error: e.message });
+      socket.emit("error", { message: e.message });
+    }
+  });
 }

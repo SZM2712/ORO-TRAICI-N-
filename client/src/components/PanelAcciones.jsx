@@ -152,6 +152,26 @@ export default function PanelAcciones({
         </div>
       )}
 
+      {borrador.tipo === "defender" && hayAliados && (
+        <div className="mt-3 text-xs text-crema/80 space-y-2">
+          <p>🛡️ Por defecto te defendés a vos. Tocá una aldea aliada para defenderla a ELLA en tu lugar — quedás expuesto vos.</p>
+          {borrador.objetivoId ? (
+            <div className="flex items-center justify-between">
+              <p className="text-oro">Vas a defender a: #{borrador.objetivoId}</p>
+              <button
+                onClick={() => setBorrador((b) => ({ ...b, objetivoId: undefined }))}
+                disabled={sellado}
+                className="underline text-crema/50 disabled:opacity-40"
+              >
+                Defenderme a mí
+              </button>
+            </div>
+          ) : (
+            <p className="text-crema/50">Te vas a defender a vos mismo.</p>
+          )}
+        </div>
+      )}
+
       <button
         onClick={onSellar}
         disabled={!listo || sellado || enviando}

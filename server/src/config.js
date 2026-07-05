@@ -37,6 +37,15 @@ export const MULTIPLICADOR_PINZA = 1.5;
 // un poco más de oro que defendiendo solos.
 export const BONUS_DEFENSA_CONJUNTA = 1;
 
+// Tesoro compartido de una alianza: el botín de cada asalto en pinza no va
+// al oro visible de cada atacante, sino a un fondo oculto de la alianza que
+// crece un poco cada ronda que la alianza se mantiene en pie.
+export const INTERES_TESORO_ALIANZA = 0.1;
+
+// Minijuego al romper una alianza por traición: quien fue traicionado tiene
+// más chances de quedarse con todo el tesoro compartido, como compensación.
+export const PROBABILIDAD_TRAICIONADO_GANA_TESORO = 0.6;
+
 export const LIMITE_RONDAS = 20;
 export const RONDAS_PROFECIA = [1, 5, 10];
 export const TIEMPO_VOTACION_MS = 30_000;

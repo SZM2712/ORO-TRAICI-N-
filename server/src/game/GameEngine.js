@@ -15,6 +15,7 @@ import {
   MULTIPLICADOR_AMBICION,
   MULTIPLICADOR_PINZA,
   BONUS_DEFENSA_CONJUNTA,
+  PROBABILIDAD_TRAICIONADO_GANA_TESORO,
 } from "../config.js";
 import { MAZO_PROFECIAS } from "./prophecies.js";
 import { puntaje } from "./state.js";
@@ -220,6 +221,23 @@ export function agregarAlianza(alianzas, a, b) {
   return [...alianzas, a < b ? [a, b] : [b, a]];
 }
 
+export function quitarAlianza(alianzas, a, b) {
+  return alianzas.filter(([x, y]) => !((x === a && y === b) || (x === b && y === a)));
+}
+
+// Clave estable para identificar el tesoro compartido de un par de aliados,
+// sin importar el orden en que se pasen los ids.
+export function claveAlianza(a, b) {
+  return a < b ? `${a}-${b}` : `${b}-${a}`;
+}
+
+// Minijuego al romper una alianza por traición: una moneda cargada a favor
+// del traicionado, para que quedarse el tesoro no dependa solo de haber
+// atacado primero.
+export function resolverTesoroTraicion(rng = Math.random) {
+  return rng() < PROBABILIDAD_TRAICIONADO_GANA_TESORO;
+}
+
 // Un aliado que asalta a su aliado rompe la alianza en el acto: se detecta
 // antes de resolver la ronda para poder narrar la traición por separado del
 // resultado del asalto en sí.
@@ -241,13 +259,15 @@ export function resolverTraiciones(alianzas, acciones) {
 // ---------------------------------------------------------------------------
 // Resolución de ronda: orden determinista fijo
 //   1) fijar defensores  2) asaltos/incendios  2.5) envíos de oro entre
-//   aliados  3) construcciones  4) cosechas  5) +1 al defensor
+//   aliados  3) construcciones  4) cosechas  5) bono a quien defendió
 // `profeciaActiva` es null o { id, leaderId } (leaderId solo si id === 'traicion_corte').
 // `alianzas` son las alianzas vigentes AL CERRAR la ronda (ya sin las que se
 // rompieron por traición esta misma ronda, ver resolverTraiciones): habilitan
 // el bono de asalto en pinza, el envío de oro y el bono de defensa conjunta.
+// `tesoros` es el objeto { claveAlianza: monto } que se muta en el lugar: el
+// botín de cada asalto en pinza se acumula ahí en vez de ir al oro visible.
 // ---------------------------------------------------------------------------
-export function resolverRonda(jugadores, acciones, profeciaActiva = null, alianzas = []) {
+export function resolverRonda(jugadores, acciones, profeciaActiva = null, alianzas = [], tesoros = {}) {
   const eventos = [];
   const porId = new Map(jugadores.map((j) => [j.id, j]));
   const obtenerAccion = (id) => acciones[id] || { tipo: "cosechar" };
@@ -259,10 +279,17 @@ export function resolverRonda(jugadores, acciones, profeciaActiva = null, alianz
   const asaltosFallan = profeciaActiva?.id === "tregua_sagrada";
   const liderSinBloqueo = profeciaActiva?.id === "traicion_corte" ? profeciaActiva.leaderId : null;
 
-  // 1) Fijar defensores
+  // 1) Fijar defensores. "Defender" protege por defecto a quien lo elige,
+  // pero puede apuntar a un aliado en su lugar: lo protege a ÉL, dejando
+  // expuesto a quien decidió cubrirlo (protectorDe guarda quién hizo qué).
   const defensores = new Set();
+  const protectorDe = new Map(); // protegidoId -> quien ejecutó la acción de defender
   for (const j of orden) {
-    if (obtenerAccion(j.id).tipo === "defender") defensores.add(j.id);
+    const acc = obtenerAccion(j.id);
+    if (acc.tipo !== "defender") continue;
+    const protegidoId = acc.objetivoId ?? j.id;
+    defensores.add(protegidoId);
+    protectorDe.set(protegidoId, j.id);
   }
   const bloqueaEfectivamente = (id) => defensores.has(id) && id !== liderSinBloqueo;
 
@@ -303,14 +330,22 @@ export function resolverRonda(jugadores, acciones, profeciaActiva = null, alianz
     } else {
       const ambicioso = atacante.castillo >= ETAPA_AMBICION;
       const companeros = (asaltantesPorObjetivo.get(objetivo.id) || []).filter((id) => id !== atacante.id);
-      const enPinza = companeros.some((id) => existeAlianza(alianzas, atacante.id, id));
+      const aliadoEnPinza = companeros.find((id) => existeAlianza(alianzas, atacante.id, id));
+      const enPinza = aliadoEnPinza != null;
       const roboBase = objetivo.muralla ? ROBO_CON_MURALLA : ROBO_NORMAL;
       let robo = roboBase;
       if (ambicioso) robo *= MULTIPLICADOR_AMBICION;
       if (enPinza) robo = Math.floor(robo * MULTIPLICADOR_PINZA);
       robo = Math.min(robo, objetivo.oro);
-      atacante.oro += robo;
       objetivo.oro -= robo;
+      if (enPinza) {
+        // El botín en pinza no se ve reflejado en el oro público: se guarda
+        // oculto en el tesoro compartido de la alianza.
+        const clave = claveAlianza(atacante.id, aliadoEnPinza);
+        tesoros[clave] = (tesoros[clave] || 0) + robo;
+      } else {
+        atacante.oro += robo;
+      }
       eventos.push({
         tipo: "asalto_exitoso",
         atacanteId: atacante.id,
@@ -380,13 +415,30 @@ export function resolverRonda(jugadores, acciones, profeciaActiva = null, alianz
     eventos.push({ tipo: "cosecha", jugadorId: j.id, cantidad });
   }
 
-  // 5) +1 al defensor (+ bono si un aliado también defendió esta ronda)
-  for (const id of defensores) {
-    const j = porId.get(id);
-    const conjunta = [...defensores].some((otroId) => otroId !== id && existeAlianza(alianzas, id, otroId));
-    const bono = BONUS_DEFENDER + (conjunta ? BONUS_DEFENSA_CONJUNTA : 0);
-    j.oro += bono;
-    eventos.push({ tipo: "defensa", jugadorId: id, liderSinBloqueo: id === liderSinBloqueo, conjunta, bono });
+  // 5) Bono a quien defendió: a sí mismo (+ bono si un aliado también se
+  // autodefendió esta ronda) o a un aliado (se lleva el bono normal por
+  // cubrirlo, sin sumar el bono de defensa conjunta).
+  for (const protegidoId of defensores) {
+    const performerId = protectorDe.get(protegidoId);
+    const performer = porId.get(performerId);
+    const esAutoDefensa = performerId === protegidoId;
+    if (esAutoDefensa) {
+      const conjunta = [...defensores].some(
+        (otroId) => otroId !== protegidoId && protectorDe.get(otroId) === otroId && existeAlianza(alianzas, protegidoId, otroId)
+      );
+      const bono = BONUS_DEFENDER + (conjunta ? BONUS_DEFENSA_CONJUNTA : 0);
+      performer.oro += bono;
+      eventos.push({ tipo: "defensa", jugadorId: protegidoId, liderSinBloqueo: protegidoId === liderSinBloqueo, conjunta, bono });
+    } else {
+      performer.oro += BONUS_DEFENDER;
+      eventos.push({
+        tipo: "defensa_aliado",
+        jugadorId: performerId,
+        objetivoId: protegidoId,
+        liderSinBloqueo: protegidoId === liderSinBloqueo,
+        bono: BONUS_DEFENDER,
+      });
+    }
   }
 
   return { eventos };

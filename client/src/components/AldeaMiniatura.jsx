@@ -2,7 +2,7 @@ import React from "react";
 import Aldea from "./Aldea.jsx";
 import { ETAPA_AMBICION } from "../utils/format.js";
 
-export default function AldeaMiniatura({ jugador, seleccionado = false, onClick, deshabilitado = false, esAliado = false }) {
+export default function AldeaMiniatura({ jugador, seleccionado = false, onClick, deshabilitado = false, esAliado = false, tesoro = 0 }) {
   const esAmbicioso = jugador.castillo >= ETAPA_AMBICION;
   return (
     <button
@@ -42,6 +42,14 @@ export default function AldeaMiniatura({ jugador, seleccionado = false, onClick,
       {jugador.selloJugada && <span className="absolute top-1 left-1 text-xs">🔒</span>}
       {esAliado && (
         <span className="absolute bottom-1 right-1 text-[9px] bg-acero text-[#0c1620] px-1 rounded font-semibold">🤝 aliado</span>
+      )}
+      {tesoro > 0 && (
+        <span
+          className="absolute bottom-1 left-1 text-[9px] bg-oro/90 text-[#241017] px-1 rounded font-semibold"
+          title="Tesoro secreto de la alianza, solo lo ves vos"
+        >
+          🔒💰{tesoro}
+        </span>
       )}
     </button>
   );

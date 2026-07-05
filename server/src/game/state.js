@@ -38,6 +38,7 @@ export function crearEstadoSala(code) {
     historial: [], // crónica del reino (texto)
     alianzas: [], // [idA, idB][] pares canónicos (idA < idB), públicos para toda la sala
     propuestasAlianza: [], // { deId, aId }[] pendientes de respuesta, privadas
+    tesorosAlianza: {}, // claveAlianza(a,b) -> monto oculto, solo visible para esos dos jugadores
     sueteMuerte: false,
     terminada: false,
     ganadorId: null,

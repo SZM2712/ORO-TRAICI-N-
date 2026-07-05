@@ -14,6 +14,8 @@ export function GameProvider({ children }) {
   const [rondaRevelada, setRondaRevelada] = useState(null);
   const [finPartida, setFinPartida] = useState(null);
   const [propuestaAlianzaRecibida, setPropuestaAlianzaRecibida] = useState(null); // { deId, deNombre, deIcono }
+  const [tesorosAlianza, setTesorosAlianza] = useState({}); // { [aliadoId]: monto } — privado, solo lo que me llega a mí
+  const [alianzaRechazadaId, setAlianzaRechazadaId] = useState(null); // objetivoId cuya propuesta acaban de rechazar
   const intentoReconexion = useRef(false);
 
   useEffect(() => {
@@ -67,6 +69,10 @@ export function GameProvider({ children }) {
     }
     function alAlianzaRechazada(payload) {
       setError(`${payload?.objetivoNombre || "Tu rival"} rechazó tu propuesta de alianza.`);
+      setAlianzaRechazadaId(payload?.objetivoId ?? null);
+    }
+    function alTesoroAlianza(payload) {
+      setTesorosAlianza((prev) => ({ ...prev, [payload.conId]: payload.monto }));
     }
 
     socket.on("connect", alConectar);
@@ -80,6 +86,7 @@ export function GameProvider({ children }) {
     socket.on("fin_partida", alFinPartida);
     socket.on("alianza_propuesta", alAlianzaPropuesta);
     socket.on("alianza_rechazada", alAlianzaRechazada);
+    socket.on("tesoro_alianza", alTesoroAlianza);
 
     return () => {
       socket.off("connect", alConectar);
@@ -93,6 +100,7 @@ export function GameProvider({ children }) {
       socket.off("fin_partida", alFinPartida);
       socket.off("alianza_propuesta", alAlianzaPropuesta);
       socket.off("alianza_rechazada", alAlianzaRechazada);
+      socket.off("tesoro_alianza", alTesoroAlianza);
     };
   }, []);
 
@@ -124,6 +132,7 @@ export function GameProvider({ children }) {
     setVotacionRevelada(null);
     setContenidoOraculo(null);
     setPropuestaAlianzaRecibida(null);
+    setTesorosAlianza({});
   }, []);
 
   const empezarPartida = useCallback((opciones) => emitirConAck("empezar", opciones), []);
@@ -136,6 +145,7 @@ export function GameProvider({ children }) {
     setPropuestaAlianzaRecibida(null);
     return emitirConAck("responder_alianza", { deId, aceptar });
   }, []);
+  const romperAlianza = useCallback((objetivoId) => emitirConAck("romper_alianza", { objetivoId }), []);
 
   const miJugador = snapshot?.jugadores?.find((j) => j.id === sesion?.playerId) || null;
   const esHost = Boolean(miJugador?.esHost);
@@ -152,6 +162,9 @@ export function GameProvider({ children }) {
     rondaRevelada,
     finPartida,
     propuestaAlianzaRecibida,
+    tesorosAlianza,
+    alianzaRechazadaId,
+    limpiarAlianzaRechazada: () => setAlianzaRechazadaId(null),
     miJugador,
     esHost,
     crearSala,
@@ -164,6 +177,7 @@ export function GameProvider({ children }) {
     agregarBot,
     proponerAlianza,
     responderAlianza,
+    romperAlianza,
     limpiarRondaRevelada: () => setRondaRevelada(null),
     limpiarVotacionRevelada: () => setVotacionRevelada(null),
   };

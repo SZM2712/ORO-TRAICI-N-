@@ -59,7 +59,15 @@ export function decidirAccionBot(jugador, jugadores, aliadosIds = new Set(), rng
     return { tipo: "asaltar", objetivoId: objetivo.id, antorcha, asedio };
   }
 
-  if (rng() < 0.15) return { tipo: "defender" };
+  if (rng() < 0.15) {
+    // A veces se juega por un aliado en vez de cubrirse él mismo.
+    if (aliadosIds.size > 0 && rng() < 0.3) {
+      const aliados = jugadores.filter((j) => aliadosIds.has(j.id));
+      const protegido = aliados[Math.floor(rng() * aliados.length)];
+      return { tipo: "defender", objetivoId: protegido.id };
+    }
+    return { tipo: "defender" };
+  }
 
   return { tipo: "cosechar" };
 }
