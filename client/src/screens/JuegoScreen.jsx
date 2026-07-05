@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useGame } from "../state/GameContext.jsx";
-import Aldea from "../components/Aldea.jsx";
-import AldeaMiniatura from "../components/AldeaMiniatura.jsx";
+import MapaReino from "../components/MapaReino.jsx";
+import FichaAldea from "../components/FichaAldea.jsx";
 import PanelAcciones from "../components/PanelAcciones.jsx";
 import BarraCastilloGlobal from "../components/BarraCastilloGlobal.jsx";
 import IndicadorSellado from "../components/IndicadorSellado.jsx";
@@ -51,6 +51,7 @@ export default function JuegoScreen() {
   const [enviando, setEnviando] = useState(false);
   const [alertaPanico, setAlertaPanico] = useState(null);
   const [propuestasEnviadas, setPropuestasEnviadas] = useState(new Set());
+  const [fichaSeleccionadaId, setFichaSeleccionadaId] = useState(null);
 
   useEffect(() => {
     setBorrador({ tipo: null });
@@ -106,15 +107,28 @@ export default function JuegoScreen() {
   const objetivoAsalto = rivales.find((r) => r.id === borrador.objetivoId);
   const objetivoEsAmbicioso = borrador.tipo === "asaltar" && Boolean(objetivoAsalto && objetivoAsalto.castillo >= ETAPA_AMBICION);
 
-  const alTocarRival = (jugador) => {
-    if (miJugador.selloJugada) return;
+  const puedeElegirComoObjetivo = (jugador) => {
+    if (miJugador.selloJugada) return false;
+    if (borrador.tipo === "asaltar") return true;
+    if (borrador.tipo === "enviar_oro" || borrador.tipo === "defender") return misAliadosIds.has(jugador.id);
+    return false;
+  };
+
+  // Tocar cualquier aldea en el mapa siempre la abre en la ficha de abajo
+  // (para poder inspeccionarla); si además es un objetivo válido para la
+  // acción en curso, también la marca como objetivo.
+  const alSeleccionarAldea = (jugador) => {
+    setFichaSeleccionadaId(jugador.id);
+    if (jugador.id === miJugador.id || !puedeElegirComoObjetivo(jugador)) return;
     if (borrador.tipo === "asaltar") {
       const esAmbicioso = jugador.castillo >= ETAPA_AMBICION;
       setBorrador((b) => ({ ...b, objetivoId: jugador.id, asedio: esAmbicioso ? b.asedio : false }));
-    } else if ((borrador.tipo === "enviar_oro" || borrador.tipo === "defender") && misAliadosIds.has(jugador.id)) {
+    } else {
       setBorrador((b) => ({ ...b, objetivoId: jugador.id }));
     }
   };
+
+  const jugadorFicha = snapshot.jugadores.find((j) => j.id === fichaSeleccionadaId) || miJugador;
 
   const alProponerAlianza = async (objetivoId) => {
     setPropuestasEnviadas((prev) => new Set(prev).add(objetivoId));
@@ -179,73 +193,31 @@ export default function JuegoScreen() {
       )}
 
       <section>
-        <p className="text-[10px] uppercase tracking-widest text-crema/40 font-mono mb-1">Tu aldea</p>
-        <div className={`bg-panel/60 rounded-xl p-3 border ${miJugador.castillo >= ETAPA_AMBICION ? "border-oro/60" : "border-white/10"}`}>
-          <Aldea
-            granjas={miJugador.granjas}
-            quemadas={miJugador.granjasQuemadas}
-            muralla={miJugador.muralla}
-            castillo={miJugador.castillo}
-          />
-          <div className="flex items-center justify-around mt-2 text-sm font-mono text-oro">
-            <span>💰 {miJugador.oro}</span>
-            <span>🌾 {miJugador.granjas}</span>
-            <span>🏰 {miJugador.castillo}/3</span>
-            {miJugador.muralla && <span>🧱</span>}
-            {miJugador.torreOraculo && <span>🔮</span>}
-          </div>
-          {miJugador.castillo >= ETAPA_AMBICION && (
-            <p className="text-[10px] text-oro text-center mt-1">👑 Asaltás con el doble de botín — pero todos van a ir por vos.</p>
-          )}
-        </div>
+        <p className="text-[10px] uppercase tracking-widest text-crema/40 font-mono mb-1">Mapa del reino</p>
+        <MapaReino
+          jugadores={snapshot.jugadores}
+          miId={miJugador.id}
+          alianzas={snapshot.alianzas || []}
+          misAliadosIds={misAliadosIds}
+          tesorosAlianza={tesorosAlianza}
+          seleccionadoId={jugadorFicha.id}
+          objetivoId={borrador.objetivoId}
+          onSeleccionar={alSeleccionarAldea}
+          puedeElegir={puedeElegirComoObjetivo}
+        />
       </section>
 
-      <section>
-        <p className="text-[10px] uppercase tracking-widest text-crema/40 font-mono mb-1">Aldeas rivales</p>
-        <div className="grid grid-cols-2 gap-2">
-          {rivales.map((j) => {
-            const esAliado = misAliadosIds.has(j.id);
-            const propuestaEnviada = propuestasEnviadas.has(j.id);
-            const tesoro = tesorosAlianza[j.id] || 0;
-            return (
-              <div key={j.id} className="flex flex-col gap-1">
-                <AldeaMiniatura
-                  jugador={j}
-                  seleccionado={borrador.objetivoId === j.id}
-                  onClick={() => alTocarRival(j)}
-                  deshabilitado={
-                    miJugador.selloJugada ||
-                    (borrador.tipo === "asaltar"
-                      ? false
-                      : borrador.tipo === "enviar_oro" || borrador.tipo === "defender"
-                      ? !esAliado
-                      : true)
-                  }
-                  esAliado={esAliado}
-                  tesoro={esAliado ? tesoro : 0}
-                />
-                {snapshot.fase === "accion" && !esAliado && !miJugador.selloJugada && (
-                  <button
-                    onClick={() => alProponerAlianza(j.id)}
-                    disabled={propuestaEnviada}
-                    className="text-[10px] rounded-lg py-1 border border-acero/50 text-acero disabled:opacity-40 disabled:text-crema/40 active:scale-95"
-                  >
-                    {propuestaEnviada ? "Propuesta enviada…" : "🤝 Proponer alianza"}
-                  </button>
-                )}
-                {snapshot.fase === "accion" && esAliado && (
-                  <button
-                    onClick={() => alRomperAlianza(j.id)}
-                    className="text-[10px] rounded-lg py-1 border border-sangre/50 text-sangre active:scale-95"
-                  >
-                    💔 Romper alianza
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </section>
+      <FichaAldea
+        jugador={jugadorFicha}
+        esYo={jugadorFicha.id === miJugador.id}
+        esAliado={misAliadosIds.has(jugadorFicha.id)}
+        tesoro={tesorosAlianza[jugadorFicha.id] || 0}
+        propuestaEnviada={propuestasEnviadas.has(jugadorFicha.id)}
+        puedeProponer={snapshot.fase === "accion" && !misAliadosIds.has(jugadorFicha.id) && !miJugador.selloJugada}
+        puedeRomper={snapshot.fase === "accion" && misAliadosIds.has(jugadorFicha.id)}
+        onProponer={alProponerAlianza}
+        onRomper={alRomperAlianza}
+      />
 
       <PanelChatAlianza
         aliados={rivales.filter((r) => misAliadosIds.has(r.id))}
