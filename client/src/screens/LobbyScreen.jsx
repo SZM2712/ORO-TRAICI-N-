@@ -9,17 +9,26 @@ const OPCIONES_TIEMPO = [
 ];
 
 export default function LobbyScreen() {
-  const { snapshot, esHost, empezarPartida, salirDeSala, setError } = useGame();
+  const { snapshot, esHost, empezarPartida, agregarBot, salirDeSala, setError } = useGame();
   const [tiempoLimite, setTiempoLimite] = useState(null);
   const [cargando, setCargando] = useState(false);
+  const [agregandoBot, setAgregandoBot] = useState(false);
 
   const jugadores = snapshot.jugadores;
   const puedeEmpezar = jugadores.length >= 3;
+  const salaLlena = jugadores.length >= 8;
 
   const alEmpezar = async () => {
     setCargando(true);
     const res = await empezarPartida({ tiempoLimite });
     setCargando(false);
+    if (!res.ok) setError(res.error);
+  };
+
+  const alAgregarBot = async () => {
+    setAgregandoBot(true);
+    const res = await agregarBot();
+    setAgregandoBot(false);
     if (!res.ok) setError(res.error);
   };
 
@@ -52,6 +61,15 @@ export default function LobbyScreen() {
             </div>
           ))}
         </div>
+        {esHost && (
+          <button
+            onClick={alAgregarBot}
+            disabled={salaLlena || agregandoBot}
+            className="w-full rounded-lg py-2 text-xs border-2 border-acero/50 text-acero disabled:opacity-40 active:scale-95"
+          >
+            {salaLlena ? "Sala llena" : "🤖 Agregar bot"}
+          </button>
+        )}
       </div>
 
       {esHost && (

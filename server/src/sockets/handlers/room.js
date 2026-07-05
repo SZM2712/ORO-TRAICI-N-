@@ -68,6 +68,18 @@ export function registrarHandlersSala(io, socket, roomManager) {
     }
   });
 
+  socket.on("agregar_bot", (payload, ack) => {
+    const sala = roomManager.obtener(socket.data.roomCode);
+    if (!sala) return ack?.({ ok: false, error: "Sala no encontrada." });
+    try {
+      sala.agregarBotDesdeHost(socket.data.playerToken);
+      ack?.({ ok: true });
+    } catch (e) {
+      ack?.({ ok: false, error: e.message });
+      socket.emit("error", { message: e.message });
+    }
+  });
+
   socket.on("disconnect", () => {
     const sala = roomManager.obtener(socket.data.roomCode);
     sala?.desconectarSocket(socket.id);

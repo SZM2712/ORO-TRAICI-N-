@@ -130,6 +130,14 @@ export class Room {
     return agregados;
   }
 
+  agregarBotDesdeHost(token) {
+    if (!this.esHost(token)) throw new Error("Solo el anfitrión puede agregar bots.");
+    if (this.estado.jugadores.length >= MAX_JUGADORES) throw new Error("La sala está llena.");
+    const bot = this.agregarBot(this.estado.jugadores.length);
+    this.emitirSnapshot();
+    return bot;
+  }
+
   reconectar(token, socketId) {
     const jugador = this.jugadorPorToken(token);
     if (!jugador) return null;

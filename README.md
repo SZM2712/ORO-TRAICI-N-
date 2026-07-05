@@ -92,6 +92,7 @@ Cuando tengas los archivos, soltalos en `assets/svg/`, descomentá los imports e
 - **Alianzas:** durante la fase de acción, cualquier jugador puede tocar "🤝 Proponer alianza" en la tarjeta de un rival; si el otro acepta (confirmación en tiempo real, no espera al cierre de la ronda), quedan aliados — visible para toda la sala en la Crónica del Reino y con una insignia "🤝 aliado" en las tarjetas. Un jugador puede tener varias alianzas simultáneas. No hay bloqueo automático de asaltos: si alguno de los dos asalta al otro, la alianza se rompe en el acto y el asalto se resuelve igual, marcado como traición ("🗡️💔 ¡TRAICIÓN!") en la crónica.
 - **Ambición del Trono:** quien tenga el castillo en etapa 2 o 3 asalta con el doble de botín (👑, ver `ETAPA_AMBICION`/`MULTIPLICADOR_AMBICION` en `config.js`) mientras se mantenga ahí — un beneficio real y a propósito para el líder, para darle al resto una razón concreta (envidia, miedo) para unirse contra él antes de que termine su castillo. La alerta de "castillo en etapa 2" ahora avisa explícitamente de esto, y las tarjetas de todos los jugadores muestran la corona mientras dure.
 - **Modo de prueba contra la máquina:** en la pantalla de inicio se elige el total de jugadores (3 a 8, vos incluido) y el botón "🤖 Probar contra la máquina" crea la sala con esa cantidad de bots (`CPU ...`) para poder probar el juego sin necesitar más gente. Los bots juegan, votan y también proponen/responden alianzas solos con una IA simple (prioriza construir, prefiere no traicionar a un aliado salvo que no tenga otro objetivo), con una demora aleatoria de 1–3 s para que se sienta natural.
+- **Bots en salas normales:** también desde el lobby de una sala creada con "Crear Sala" (con gente real), el anfitrión puede tocar "🤖 Agregar bot" las veces que quiera mientras la sala no esté llena, para completar el mínimo de 3 jugadores o sumar rivales extra sin depender de que se una más gente.
 
 ## Despliegue
 
@@ -130,6 +131,7 @@ Con eso, cualquiera puede entrar desde su celular a la URL de Netlify, crear o u
 |---|---|---|
 | `crear_sala` | cliente → servidor | Crea una sala nueva (ack con `roomCode`, `playerToken`, `playerId`). Con `{ vsMaquina: true, cantidadBots }` agrega bots automáticos a la sala |
 | `unirse` | cliente → servidor | Se une a una sala, o se reconecta si manda `playerToken` |
+| `agregar_bot` | cliente → servidor | El anfitrión agrega un bot más a la sala (solo en el lobby) |
 | `empezar` | cliente → servidor | El anfitrión inicia la partida |
 | `jugar_accion` | cliente → servidor | Envía la jugada secreta de la ronda |
 | `forzar_pendientes` | cliente → servidor | El anfitrión fuerza a los jugadores pendientes (Cosechar / voto al azar) |

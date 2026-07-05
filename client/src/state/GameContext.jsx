@@ -130,6 +130,7 @@ export function GameProvider({ children }) {
   const jugarAccion = useCallback((accion) => emitirConAck("jugar_accion", accion), []);
   const forzarPendientes = useCallback(() => emitirConAck("forzar_pendientes", {}), []);
   const votarPergamino = useCallback((opcion) => emitirConAck("votar_pergamino", { opcion }), []);
+  const agregarBot = useCallback(() => emitirConAck("agregar_bot", {}), []);
   const proponerAlianza = useCallback((objetivoId) => emitirConAck("proponer_alianza", { objetivoId }), []);
   const responderAlianza = useCallback((deId, aceptar) => {
     setPropuestaAlianzaRecibida(null);
@@ -160,6 +161,7 @@ export function GameProvider({ children }) {
     jugarAccion,
     forzarPendientes,
     votarPergamino,
+    agregarBot,
     proponerAlianza,
     responderAlianza,
     limpiarRondaRevelada: () => setRondaRevelada(null),
