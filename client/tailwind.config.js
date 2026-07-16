@@ -49,6 +49,24 @@ export default {
           "0%, 100%": { opacity: 0.35 },
           "50%": { opacity: 0.7 },
         },
+        "tension-shake": {
+          "0%, 100%": { transform: "translateX(0) rotate(0deg)" },
+          "25%": { transform: "translateX(-3px) rotate(-6deg)" },
+          "75%": { transform: "translateX(3px) rotate(6deg)" },
+        },
+        "punto-pensando": {
+          "0%, 80%, 100%": { opacity: 0.2, transform: "translateY(0)" },
+          "40%": { opacity: 1, transform: "translateY(-2px)" },
+        },
+        "escena-entra": {
+          "0%": { opacity: 0, transform: "scale(0.85) translateY(6px)" },
+          "100%": { opacity: 1, transform: "scale(1) translateY(0)" },
+        },
+        "resultado-pop": {
+          "0%": { transform: "scale(0.5)", opacity: 0 },
+          "60%": { transform: "scale(1.15)", opacity: 1 },
+          "100%": { transform: "scale(1)", opacity: 1 },
+        },
       },
       animation: {
         "moneda-giro": "moneda-giro 1.2s linear infinite",
@@ -59,6 +77,10 @@ export default {
         "corona-brillo": "corona-brillo 2.2s ease-in-out infinite",
         "linea-marcha": "linea-marcha 1.4s linear infinite",
         "agua-brillo": "agua-brillo 2.6s ease-in-out infinite",
+        "tension-shake": "tension-shake 0.15s ease-in-out infinite",
+        "punto-pensando": "punto-pensando 1.2s ease-in-out infinite",
+        "escena-entra": "escena-entra 0.25s ease-out",
+        "resultado-pop": "resultado-pop 0.35s ease-out",
       },
     },
   },

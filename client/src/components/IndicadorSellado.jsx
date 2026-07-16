@@ -13,7 +13,19 @@ export default function IndicadorSellado({ jugadores, clave = "selloJugada", eti
           title={j.nombre}
         >
           <span>{j.icono}</span>
-          <span>{j[clave] ? "🔒" : "…"}</span>
+          {j[clave] ? (
+            <span>🔒</span>
+          ) : (
+            <span className="flex items-center gap-[1px]" aria-label="pensando">
+              {[0, 1, 2].map((i) => (
+                <span
+                  key={i}
+                  className="w-[3px] h-[3px] rounded-full bg-crema/40 animate-punto-pensando"
+                  style={{ animationDelay: `${i * 0.15}s` }}
+                />
+              ))}
+            </span>
+          )}
         </div>
       ))}
     </div>

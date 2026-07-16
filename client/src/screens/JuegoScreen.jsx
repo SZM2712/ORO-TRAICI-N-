@@ -79,10 +79,8 @@ export default function JuegoScreen() {
 
   useEffect(() => {
     if (!rondaRevelada) return;
-    const tipos = new Set(rondaRevelada.eventos.map((e) => e.tipo));
-    if (tipos.has("asalto_exitoso") || tipos.has("asalto_bloqueado")) reproducir("espadas");
-    if (tipos.has("incendio")) reproducir("fuego");
-    if (tipos.has("cosecha")) reproducir("moneda");
+    // Los sonidos de asalto/incendio/cosecha ahora se disparan paso a paso
+    // dentro de ModalRevelacion, sincronizados con cada escena.
     const panico = rondaRevelada.eventos.find((e) => e.tipo === "alerta_panico");
     if (panico) {
       const jugador = snapshot.jugadores.find((j) => j.id === panico.jugadorId);
@@ -270,7 +268,12 @@ export default function JuegoScreen() {
       )}
 
       {!mostrandoModalProfecia && !finPartida && (
-        <ModalRevelacion rondaRevelada={rondaRevelada} onCerrar={limpiarRondaRevelada} />
+        <ModalRevelacion
+          rondaRevelada={rondaRevelada}
+          jugadores={snapshot.jugadores}
+          reproducir={reproducir}
+          onCerrar={limpiarRondaRevelada}
+        />
       )}
 
       <ModalPropuestaAlianza propuesta={propuestaAlianzaRecibida} onResponder={responderAlianza} />
