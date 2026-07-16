@@ -34,12 +34,31 @@ export default {
           "0%, 100%": { boxShadow: "0 0 0 0 rgba(224,96,79,0.6)" },
           "50%": { boxShadow: "0 0 0 10px rgba(224,96,79,0)" },
         },
+        "estrella-titila": {
+          "0%, 100%": { opacity: 0.25 },
+          "50%": { opacity: 1 },
+        },
+        "corona-brillo": {
+          "0%, 100%": { filter: "drop-shadow(0 0 2px rgba(227,179,76,0.35))" },
+          "50%": { filter: "drop-shadow(0 0 7px rgba(227,179,76,0.95))" },
+        },
+        "linea-marcha": {
+          to: { strokeDashoffset: -16 },
+        },
+        "agua-brillo": {
+          "0%, 100%": { opacity: 0.35 },
+          "50%": { opacity: 0.7 },
+        },
       },
       animation: {
         "moneda-giro": "moneda-giro 1.2s linear infinite",
         "fuego-parpadeo": "fuego-parpadeo 1.4s ease-in-out infinite",
         "carta-voltea": "carta-voltea 0.7s ease-in-out",
         "panico-pulso": "panico-pulso 1.6s ease-in-out infinite",
+        "estrella-titila": "estrella-titila 3s ease-in-out infinite",
+        "corona-brillo": "corona-brillo 2.2s ease-in-out infinite",
+        "linea-marcha": "linea-marcha 1.4s linear infinite",
+        "agua-brillo": "agua-brillo 2.6s ease-in-out infinite",
       },
     },
   },

@@ -57,39 +57,142 @@ function posicionesPara(cantidad) {
   return POSICIONES[cantidad] || POSICIONES[8];
 }
 
-// Fondo decorativo del reino: colinas, un río y manchas de bosque, dibujado
-// a mano en SVG con la misma paleta que <Aldea/> — sin depender de assets
-// externos, como el resto del arte del juego.
+const ESTRELLAS = [
+  [8, 8], [18, 14], [30, 6], [42, 16], [58, 7], [70, 12], [82, 6], [93, 15],
+  [5, 22], [25, 4], [50, 3], [88, 22], [96, 8], [14, 5],
+];
+
+const ARBOLES = [
+  [12, 20, 1], [17, 24, 0.7], [88, 16, 1], [93, 21, 0.75], [6, 60, 0.85],
+  [10, 66, 0.6], [92, 58, 0.9], [88, 65, 0.65], [30, 92, 0.8], [70, 93, 0.7],
+  [50, 96, 0.6], [4, 88, 0.75],
+];
+
+const ROCAS = [
+  [40, 62, 1], [62, 68, 0.8], [22, 55, 0.7], [76, 50, 0.9],
+];
+
+// Fondo decorativo del reino: cielo estrellado, montañas y colinas en capas,
+// un río con brillo, bosques y rocas, una rosa de los vientos y un marco tipo
+// pergamino con viñeta — todo dibujado a mano en SVG con la misma paleta que
+// <Aldea/>, sin depender de assets externos, como el resto del arte del juego.
 function TerrenoDecorativo() {
   return (
     <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full" aria-hidden="true">
       <defs>
         <linearGradient id="mapaCielo" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#2a1420" />
-          <stop offset="100%" stopColor="#1a0d16" />
+          <stop offset="0%" stopColor="#341a2c" />
+          <stop offset="45%" stopColor="#26121f" />
+          <stop offset="100%" stopColor="#170b13" />
         </linearGradient>
+        <linearGradient id="montanaLejos" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#4a3050" />
+          <stop offset="100%" stopColor="#2c1a2e" />
+        </linearGradient>
+        <linearGradient id="colinaAtras" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#4a3826" />
+          <stop offset="100%" stopColor="#2f2314" />
+        </linearGradient>
+        <linearGradient id="colinaAdelante" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#382a1a" />
+          <stop offset="100%" stopColor="#20170e" />
+        </linearGradient>
+        <linearGradient id="rioGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#1f4550" />
+          <stop offset="100%" stopColor="#3d6b74" />
+        </linearGradient>
+        <radialGradient id="vinieta" cx="50%" cy="45%" r="75%">
+          <stop offset="55%" stopColor="#000000" stopOpacity="0" />
+          <stop offset="100%" stopColor="#0a0509" stopOpacity="0.75" />
+        </radialGradient>
       </defs>
+
       <rect width="100" height="100" fill="url(#mapaCielo)" />
-      <path d="M0 60 Q 20 50 35 62 T 70 58 T 100 66 V100 H0 Z" fill="#3a2b1a" opacity="0.9" />
-      <path d="M0 72 Q 25 64 45 74 T 100 78 V100 H0 Z" fill="#2f2314" />
+
+      {ESTRELLAS.map(([x, y], i) => (
+        <circle
+          key={i}
+          cx={x}
+          cy={y}
+          r={i % 3 === 0 ? 0.5 : 0.3}
+          fill="#F3E7D3"
+          className="animate-estrella-titila"
+          style={{ animationDelay: `${(i % 5) * 0.5}s` }}
+        />
+      ))}
+      <g transform="translate(85,11)" opacity="0.9">
+        <circle r="3.4" fill="#F3E7D3" />
+        <circle cx="1.6" cy="-1" r="3.4" fill="#26121f" />
+      </g>
+
+      {/* Montañas lejanas */}
       <path
-        d="M-5 30 Q 20 40 15 55 T 30 78 T 20 100"
-        stroke="#3a5a66"
-        strokeWidth="3"
-        fill="none"
+        d="M-5 42 L8 28 L18 40 L28 22 L40 40 L52 24 L64 40 L76 26 L88 40 L100 30 V60 H-5 Z"
+        fill="url(#montanaLejos)"
         opacity="0.55"
       />
-      {[
-        [12, 18],
-        [88, 15],
-        [8, 85],
-        [92, 88],
-        [60, 8],
-      ].map(([x, y], i) => (
-        <g key={i} transform={`translate(${x},${y})`} opacity="0.5">
-          <path d="M0 6 L4 -6 L8 6 Z" fill="#4a5a3a" />
-          <path d="M4 4 L8 -8 L12 4 Z" fill="#3d4a30" />
+
+      {/* Colinas medias y delanteras */}
+      <path d="M0 58 Q 20 48 35 60 T 70 56 T 100 64 V100 H0 Z" fill="url(#colinaAtras)" opacity="0.92" />
+      <path d="M0 74 Q 25 65 45 75 T 100 79 V100 H0 Z" fill="url(#colinaAdelante)" />
+
+      {/* Río con brillo */}
+      <path
+        d="M-5 30 Q 20 40 15 55 T 30 78 T 20 102"
+        stroke="url(#rioGrad)"
+        strokeWidth="3.2"
+        fill="none"
+        strokeLinecap="round"
+        opacity="0.85"
+      />
+      <path
+        d="M-5 30 Q 20 40 15 55 T 30 78 T 20 102"
+        stroke="#cdeaf0"
+        strokeWidth="0.8"
+        fill="none"
+        strokeLinecap="round"
+        className="animate-agua-brillo"
+      />
+
+      {/* Rocas */}
+      {ROCAS.map(([x, y, s], i) => (
+        <g key={i} transform={`translate(${x},${y}) scale(${s})`} opacity="0.6">
+          <path d="M-4 2 Q-3 -3 2 -2 Q5 -1 4 2 Z" fill="#463a3a" />
         </g>
+      ))}
+
+      {/* Bosques */}
+      {ARBOLES.map(([x, y, s], i) => (
+        <g key={i} transform={`translate(${x},${y}) scale(${s})`} opacity="0.65">
+          <path d="M0 9 L4 -2 L8 9 Z" fill="#3a4a2e" />
+          <path d="M2 6 L6 -6 L10 6 Z" fill="#445c34" />
+          <path d="M4 3 L8 -9 L12 3 Z" fill="#4e6b3a" />
+        </g>
+      ))}
+
+      {/* Rosa de los vientos */}
+      <g transform="translate(91,91)" opacity="0.4" stroke="#E3B34C" fill="none" strokeWidth="0.35">
+        <circle r="6" />
+        <path d="M0 -6 V6 M-6 0 H6 M-4.2 -4.2 L4.2 4.2 M-4.2 4.2 L4.2 -4.2" />
+        <path d="M0 -6 L1.3 -3 L0 -1.5 L-1.3 -3 Z" fill="#E3B34C" stroke="none" />
+      </g>
+      <text x="91" y="82.5" fontSize="2.6" fill="#E3B34C" opacity="0.5" textAnchor="middle" fontFamily="serif">
+        N
+      </text>
+
+      {/* Viñeta y marco tipo pergamino */}
+      <rect width="100" height="100" fill="url(#vinieta)" />
+      <rect x="1.2" y="1.2" width="97.6" height="97.6" rx="3" fill="none" stroke="#E3B34C" strokeOpacity="0.35" strokeWidth="0.5" />
+      <rect x="2.4" y="2.4" width="95.2" height="95.2" rx="2.4" fill="none" stroke="#E3B34C" strokeOpacity="0.18" strokeWidth="0.25" />
+      {[[2.4, 2.4], [97.6, 2.4], [2.4, 97.6], [97.6, 97.6]].map(([x, y], i) => (
+        <path
+          key={i}
+          transform={`translate(${x},${y}) rotate(${i * 90})`}
+          d="M0 0 L2.2 0 M0 0 L0 2.2"
+          stroke="#E3B34C"
+          strokeOpacity="0.45"
+          strokeWidth="0.5"
+        />
       ))}
     </svg>
   );
@@ -99,22 +202,33 @@ function LineasAlianza({ alianzas, posicionPorId }) {
   if (!alianzas?.length) return null;
   return (
     <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full pointer-events-none">
+      <defs>
+        <linearGradient id="lineaAlianzaGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#8FB3C7" />
+          <stop offset="100%" stopColor="#E3B34C" />
+        </linearGradient>
+      </defs>
       {alianzas.map(([a, b]) => {
         const pa = posicionPorId.get(a);
         const pb = posicionPorId.get(b);
         if (!pa || !pb) return null;
         return (
-          <line
-            key={`${a}-${b}`}
-            x1={pa[0]}
-            y1={pa[1]}
-            x2={pb[0]}
-            y2={pb[1]}
-            stroke="#8FB3C7"
-            strokeWidth="0.6"
-            strokeDasharray="2,1.5"
-            opacity="0.7"
-          />
+          <g key={`${a}-${b}`}>
+            <line x1={pa[0]} y1={pa[1]} x2={pb[0]} y2={pb[1]} stroke="#8FB3C7" strokeWidth="1.6" opacity="0.18" />
+            <line
+              x1={pa[0]}
+              y1={pa[1]}
+              x2={pb[0]}
+              y2={pb[1]}
+              stroke="url(#lineaAlianzaGrad)"
+              strokeWidth="0.5"
+              strokeDasharray="2.2,1.6"
+              opacity="0.9"
+              className="animate-linea-marcha"
+            />
+            <circle cx={pa[0]} cy={pa[1]} r="0.7" fill="#E3B34C" opacity="0.8" />
+            <circle cx={pb[0]} cy={pb[1]} r="0.7" fill="#E3B34C" opacity="0.8" />
+          </g>
         );
       })}
     </svg>
@@ -137,7 +251,7 @@ export default function MapaReino({
   const posicionPorId = new Map(ordenados.map((j, i) => [j.id, posiciones[i % posiciones.length]]));
 
   return (
-    <div className="relative w-full aspect-[5/4] rounded-xl overflow-hidden border border-white/10 sombra-panel">
+    <div className="relative w-full aspect-[5/4] rounded-xl overflow-hidden border border-oro/20 sombra-panel">
       <TerrenoDecorativo />
       <LineasAlianza alianzas={alianzas} posicionPorId={posicionPorId} />
 
@@ -153,6 +267,7 @@ export default function MapaReino({
         // ficha de abajo; "vigente" solo afecta si además queda marcada como
         // objetivo de la acción en curso (ver JuegoScreen.alSeleccionarAldea).
         const vigente = esYo || puedeElegir(j);
+        const brillar = esAmbicioso || esObjetivo || seleccionado;
 
         return (
           <button
@@ -160,10 +275,10 @@ export default function MapaReino({
             type="button"
             onClick={() => onSeleccionar(j)}
             style={{ left: `${x}%`, top: `${y}%` }}
-            className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-0.5 group active:scale-95"
+            className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group active:scale-95"
           >
             <div
-              className={`relative w-10 h-10 rounded-full border-2 flex items-center justify-center text-lg bg-panel/90 transition-all ${
+              className={`relative w-11 h-11 rounded-full border-2 flex items-center justify-center text-lg transition-all ${
                 esObjetivo
                   ? "border-sangre scale-110"
                   : seleccionado
@@ -175,16 +290,25 @@ export default function MapaReino({
                   : esAmbicioso
                   ? "border-oro"
                   : "border-white/20"
-              } ${!vigente ? "opacity-50" : ""}`}
+              } ${!vigente ? "opacity-50" : ""} ${brillar ? "animate-corona-brillo" : ""}`}
+              style={{
+                background: "radial-gradient(circle at 35% 30%, #33202a, #1a0d16 75%)",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.6), inset 0 0 6px rgba(0,0,0,0.5)",
+              }}
             >
               {j.icono}
               {esAmbicioso && <span className="absolute -top-1.5 -right-1.5 text-[10px]">👑</span>}
               {j.selloJugada && <span className="absolute -bottom-1 -right-1 text-[9px]">🔒</span>}
             </div>
-            <span className="text-[9px] font-texto text-crema/90 bg-black/50 px-1 rounded truncate max-w-[64px]">
+            <div
+              className={`w-6 h-1.5 rounded-full bg-black/50 blur-[1.5px] mt-[-4px] -z-10 transition-all ${
+                seleccionado || esObjetivo ? "scale-110" : ""
+              }`}
+            />
+            <span className="mt-0.5 text-[9px] font-texto text-crema/90 bg-panel/85 border border-oro/20 px-1 rounded-sm truncate max-w-[64px]">
               {esYo ? "Vos" : j.nombre}
             </span>
-            <span className="text-[9px] font-mono text-oro bg-black/40 px-1 rounded">
+            <span className="text-[9px] font-mono text-oro bg-panel/80 border border-oro/10 px-1 rounded-sm">
               💰{j.oro} 🏰{j.castillo}
             </span>
             {esAliado && (

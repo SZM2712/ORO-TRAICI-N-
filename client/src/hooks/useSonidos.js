@@ -14,7 +14,7 @@ const ARCHIVOS = {
 };
 
 const RUTA_MUSICA_FONDO = "/sounds/musica-fondo.mp3";
-const VOLUMEN_MUSICA = 0.22;
+const VOLUMEN_MUSICA = 0.12;
 const CLAVE_MUTE = "oro_traicion_mute";
 
 // La música de fondo es una única instancia global (no una por hook): así
